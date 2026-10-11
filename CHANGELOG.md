@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.2.0 (2026-10-11)
 
 - Built-in coverage: `--coverage[=lines,branches,methods,eval]` (or
   `PADDED_CELL_COVERAGE`) measures the runner, every worker and every cell,

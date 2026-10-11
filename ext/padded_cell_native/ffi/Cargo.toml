@@ -1,6 +1,6 @@
 [package]
 name = "padded_cell_native"
-version = "0.1.0"
+version = "0.2.0"
 description = "Ruby bindings for the padded_cell crate"
 publish = false
 edition.workspace = true
