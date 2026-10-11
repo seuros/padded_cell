@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+- Built-in coverage: `--coverage[=lines,branches,methods,eval]` (or
+  `PADDED_CELL_COVERAGE`) measures the runner, every worker and every cell,
+  and sums them exactly. Configured with `PaddedCell.coverage` in the test
+  helper: tracked files, filters, groups, the `:rails` profile. Honors
+  `# :nocov:` blocks and `# simplecov:disable` comments. Writes
+  `coverage.md` (the code that never ran, for agents, reviews and CI
+  summaries), `lcov.info`, and `coverage.json` / `.resultset.json`.
+  `minimum`, `minimum_by_file`, `minimum_by_group` and `maximum_drop` fail a
+  whole passing run with exit 3. `--coverage-merge` merges shards' reports.
 - `--seed` must be 0 to 2**64 - 1; others crashed the planner.
 - `--asylum[=N]`: retry failed tests (N times, default 2) after the run,
   alone and in fresh cells. Tests that pass on retry count as passed and are

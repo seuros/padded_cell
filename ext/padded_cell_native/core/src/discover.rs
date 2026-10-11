@@ -6,13 +6,15 @@
 //! `test "name"` declarations. Nothing is evaluated.
 
 use std::iter::FusedIterator;
-use std::num::NonZeroUsize;
-use std::path::{Path, PathBuf};
-use std::{fs, io, slice, thread};
+use std::path::Path;
+use std::slice;
 
 use ruby_prism::{
     CallNode, ClassNode, DefNode, Location, ModuleNode, Node, SingletonClassNode, Visit,
 };
+
+use crate::FileError;
+use crate::parallel::fill;
 
 #[cfg(test)]
 mod tests;
@@ -121,17 +123,6 @@ impl ExactSizeIterator for Iter<'_> {}
 
 impl FusedIterator for Iter<'_> {}
 
-/// A test file that could not be read.
-#[derive(Debug, thiserror::Error)]
-#[error("{}: {source}", path.display())]
-pub struct FileError {
-    /// The file.
-    pub path: PathBuf,
-    /// Why it could not be read.
-    #[source]
-    pub source: io::Error,
-}
-
 /// The tests defined in `source`, in source order. Syntax errors do not
 /// stop discovery: what Prism recovers is reported.
 #[must_use]
@@ -160,7 +151,7 @@ pub fn discover_many<S: AsRef<[u8]> + Sync>(sources: &[S]) -> Vec<Discovery> {
 /// [`FileError`] when the file cannot be read.
 pub fn discover_file(path: impl AsRef<Path>) -> Result<Discovery, FileError> {
     let path = path.as_ref();
-    let source = fs::read(path).map_err(|source| FileError { path: path.to_owned(), source })?;
+    let source = FileError::read(path)?;
     Ok(discover(&source))
 }
 
@@ -172,45 +163,8 @@ pub fn discover_file(path: impl AsRef<Path>) -> Result<Discovery, FileError> {
 /// The [`FileError`] of the first unreadable file, in input order.
 pub fn discover_files<P: AsRef<Path> + Sync>(paths: &[P]) -> Result<Vec<Discovery>, FileError> {
     let mut found = vec![Discovery::default(); paths.len()];
-    fill(paths, &mut found, |path| discover_file(path))?;
+    fill(paths, &mut found, discover_file)?;
     Ok(found)
-}
-
-/// Runs `f` over `items` on scoped threads, each writing its own slots of
-/// `out`. Returns the first error in input order.
-///
-/// Scoped threads: none outlives the call, so a process may fork right after
-/// (a pool such as rayon's would leave its threads behind in the parent and
-/// a broken pool in the child).
-fn fill<T, R, E>(items: &[T], out: &mut [R], f: impl Fn(&T) -> Result<R, E> + Sync) -> Result<(), E>
-where
-    T: Sync,
-    R: Send,
-    E: Send,
-{
-    let run = |items: &[T], out: &mut [R]| -> Result<(), E> {
-        for (item, slot) in items.iter().zip(out) {
-            *slot = f(item)?;
-        }
-        Ok(())
-    };
-    let run = &run;
-    let threads = thread::available_parallelism().map_or(1, NonZeroUsize::get).min(items.len());
-    if threads <= 1 {
-        return run(items, out);
-    }
-    let chunk = items.len().div_ceil(threads);
-    thread::scope(|scope| {
-        let workers: Vec<_> = items
-            .chunks(chunk)
-            .zip(out.chunks_mut(chunk))
-            .map(|(items, out)| scope.spawn(move || run(items, out)))
-            .collect();
-        // Chunks are in input order and each stops at its first error.
-        workers.into_iter().try_for_each(|worker| {
-            worker.join().unwrap_or_else(|panic| std::panic::resume_unwind(panic))
-        })
-    })
 }
 
 /// Walks the tree. Names are borrowed from the parse result until a test

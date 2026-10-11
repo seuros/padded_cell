@@ -12,15 +12,18 @@ module PaddedCell
     # result when the cell died or ran past timeout seconds.
     #
     #   close: descriptors the cell must not keep open (the worker's socket)
-    def run(klass, name, seed:, timeout: nil, close: [])
+    #   probe: the worker's Chart::Probe, which gets the cell's coverage
+    def run(klass, name, seed:, timeout: nil, close: [], probe: nil)
       # Binary: the result is Marshal data, and with Encoding.default_internal
       # set (Rails sets it) a text-mode pipe transcodes what is written to it.
       reader, writer = IO.pipe
       [reader, writer].each(&:binmode)
       started = Minitest.clock_time
-      pid = fork_cell(klass, name, seed, reader, writer, close)
+      pid = fork_cell(klass, name, seed, reader, writer, close, probe)
       writer.close
-      collect(pid, reader, klass, name, started, timeout)
+      delta, result = collect(pid, reader, klass, name, started, timeout)
+      delta ? probe.absorb(delta) : probe&.lost
+      result
     ensure
       reader&.close
       writer&.close unless writer&.closed?
@@ -34,7 +37,7 @@ module PaddedCell
       Results.crashed(klass, name, "exit(#{e.status}) called during the test")
     end
 
-    def fork_cell(klass, name, seed, reader, writer, close)
+    def fork_cell(klass, name, seed, reader, writer, close, probe)
       $stdout.flush
       $stderr.flush
       Process.fork do
@@ -43,7 +46,9 @@ module PaddedCell
           reader.close
           close.each(&:close)
           srand(seed)
-          writer.write(Results.dump(execute(klass, name)))
+          probe&.start
+          result = execute(klass, name)
+          writer.write(Results.envelope(probe&.capture, result))
           status = 0
         rescue Exception => e # anything: report it, then exit!
           warn "padded_cell: cell #{klass}##{name} failed to report: #{e.class}: #{e.message}"
@@ -54,19 +59,20 @@ module PaddedCell
       end
     end
 
+    # [coverage delta or nil, result]
     def collect(pid, reader, klass, name, started, timeout)
       data = read(reader, timeout && (started + timeout))
       elapsed = Minitest.clock_time - started
       if data.nil?
         Process.kill(:KILL, pid)
         Process.wait(pid)
-        return Results.crashed(klass, name, "timed out after #{timeout}s", time: elapsed)
+        return [nil, Results.crashed(klass, name, "timed out after #{timeout}s", time: elapsed)]
       end
 
       _, status = Process.wait2(pid)
-      return Results.load(data, klass, name) unless data.empty?
+      return Results.unwrap(data, klass, name) unless data.empty?
 
-      Results.crashed(klass, name, Results.describe(status, 'cell'), time: elapsed)
+      [nil, Results.crashed(klass, name, Results.describe(status, 'cell'), time: elapsed)]
     end
 
     # Everything until EOF, or nil when the deadline passes first.

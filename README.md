@@ -74,10 +74,11 @@ $ padded_cell --asylum                     # retry failures; report the flaky on
 $ padded_cell --list                       # what would run, without loading anything
 $ padded_cell --shard 2/4                  # CI: the second quarter of the classes
 $ padded_cell --junit tmp/junit.xml --json tmp/results.jsonl
+$ padded_cell --coverage                   # line and branch coverage (see Coverage)
 ```
 
 Exit status: 0 when everything passed, 1 otherwise, 2 for usage or load
-errors, 130 when interrupted.
+errors, 3 when only coverage is below a threshold, 130 when interrupted.
 
 ### How a run works
 
@@ -162,6 +163,112 @@ PaddedCell.cleanup { |worker| Database.drop("app_test_#{worker}") }
 failing `after_fork` fails every test of its worker; a failing `cleanup`
 fails the run, even when every test passed.
 
+## Coverage
+
+Ruby's `Coverage`, measured in the runner, in every worker and in every
+cell, and summed exactly: a parallel run reports the counts of a serial one.
+
+```console
+$ padded_cell --coverage test/                         # lines and branches
+$ padded_cell --coverage=lines,branches,methods test/
+$ PADDED_CELL_COVERAGE=1 bin/rails padded_cell
+```
+
+Measuring starts before the suite loads, so what is measured (`lines`,
+`branches`, `methods`, and `eval` for templates, experimental) comes from the
+command line. The report is configured in the test helper:
+
+```ruby
+# test/test_helper.rb
+PaddedCell.coverage(:rails) do
+  track "{app,lib}/**/*.rb"           # report files never loaded, at 0%
+  skip "app/legacy/"                  # also `filter`
+  group "Operations", "app/concepts"  # string, regexp, array or block
+  group("Contracts") { |file| file.filename.include?("contract") }
+  minimum line: 90, branch: 80
+  minimum_by_file line: 50
+  minimum_by_group "Operations", line: 95
+  maximum_drop line: 1                # since the previous whole run
+  formats :markdown, :lcov, :json
+  dir "coverage"                      # --coverage-dir wins
+end
+```
+
+- Paths are matched relative to the project root. A string matches whole
+  path segments (`"app/models"` takes `app/models/user.rb`, not
+  `app/models_old/`), `"lib/"` a directory anywhere, `"contract.rb"` a file
+  name ending; a regexp matches the path; a block gets the file
+  (`filename`, `project_filename`, `src`).
+- Left out by default: `vendor/bundle`, hidden files, `test/`, `spec/`,
+  `features/`. `clear_filters` drops these.
+- `:rails` skips `config/` and `db/`, groups `app/channels`,
+  `app/controllers`, `app/helpers`, `app/jobs` and `app/workers`, `lib/`,
+  `app/mailers`, `app/models` and `app/views`, and tracks
+  `{app,lib}/**/*.rb`. A file in no group is Ungrouped.
+- Thresholds compare percents floored to 2 decimals.
+
+`PaddedCell.coverage` configures only; without `--coverage` nothing is
+measured. Outside padded_cell, guard it with `if defined?(PaddedCell.coverage)`.
+
+Into `coverage/` go, by format:
+
+- `markdown`: `coverage.md`, for agents, reviews and CI summaries
+  (`cat coverage/coverage.md >> $GITHUB_STEP_SUMMARY`): the totals and
+  groups, then every file with code that never ran, the most missed first,
+  with its missed lines, branches and methods, and that code. It stops
+  listing files at 1 MB, the size of a GitHub job summary.
+- `lcov`: `lcov.info` (`SF:./path`), for CI and editors.
+- `json`: `coverage.json` and `.resultset.json`, in SimpleCov's formats, for
+  the tools reading them.
+
+Also, every run: `.padded_cell.json` (what the report is made of, and what
+`--coverage-merge` reads), and after a whole passing run `.last_run.json`.
+
+Lines and branches inside `# :nocov:` blocks, and under
+`# simplecov:disable [line|branch|method]` / `# simplecov:enable` comments,
+are skipped. A directive after code skips its own line.
+
+A run below a threshold exits 3. Thresholds hold for a whole, passing,
+complete run only: they are not checked when tests failed, when tests were
+picked by name or line, under `--shard`, or when a worker or cell died
+before handing over what it measured (the report then says it is partial).
+Reports are written either way, failing runs included.
+
+A suite that starts SimpleCov as well is refused (exit 2): two tools cannot
+share Ruby's `Coverage`.
+
+### Shards
+
+Each shard reports on its own; merge them, at the same commit, without
+running anything:
+
+```console
+$ padded_cell --coverage --coverage-dir coverage/1 --shard 1/2 test/   # machine 1
+$ padded_cell --coverage --coverage-dir coverage/2 --shard 2/2 test/   # machine 2
+$ padded_cell --coverage-merge coverage/1,coverage/2 --coverage-dir coverage
+```
+
+The merge refuses files that differ between shards or from the checkout,
+and checks thresholds when every shard of the run is there. Lines that run
+while the suite loads count once per shard.
+
+### Cost
+
+Measuring is opt-in: Ruby's instrumentation slows tests down. On a Rails
+suite of 6,300 tests, lines and branches took the run from 465 s to 638 s of
+CPU.
+
+A worker hands over what it measured every 10 seconds or more: each time,
+Ruby copies the coverage of every file it loaded, gems included (a few
+milliseconds in a small app, a few hundred in a big Rails one), so the
+interval stretches to keep this under 1% of the worker's time. A worker that
+dies loses what it measured since. With `--isolation test` every cell pays
+one such copy, at its end.
+
+Files never loaded report their branches in the order Ruby compiles them.
+With `eval`, code that `class_eval` runs from a heredoc counts as lines of
+its file; directives in templates are not read.
+
 ## Rails
 
 Nothing to configure. ActiveSupport's parallelization hooks run around
@@ -179,8 +286,7 @@ $ bin/rails padded_cell ARGS="-j 8 test/models"
 Rails suites with fixtures run with `--isolation worker` unless told
 otherwise (see [Isolation](#isolation)).
 
-Coverage tools that write their results from an `at_exit` hook (SimpleCov)
-see only the runner, as with Rails' process parallelization.
+For coverage, see [Coverage](#coverage).
 
 ## Library
 

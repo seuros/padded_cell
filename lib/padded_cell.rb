@@ -23,6 +23,14 @@ module PaddedCell
     def after_fork(&) = Hooks.after_fork(&)
 
     def cleanup(&) = Hooks.cleanup(&)
+
+    # Configures the coverage report (see Chart::Config). Inert unless
+    # padded_cell runs with --coverage. A helper also run without
+    # padded_cell guards it: `if defined?(PaddedCell.coverage)`.
+    def coverage(profile = nil, &)
+      require_relative 'padded_cell/chart'
+      Chart.configure(profile, &)
+    end
   end
 end
 

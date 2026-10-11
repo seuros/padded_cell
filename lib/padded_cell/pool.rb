@@ -19,12 +19,14 @@ module PaddedCell
     Slot = Struct.new(:worker, :pid, :socket, :test, :started, :batch)
 
     # tests: [[klass, method_name], ...], dispatched by index.
-    def initialize(tests, jobs:, isolation:, seed:, timeout: nil)
+    # coverage: a Chart::Accumulator when measuring coverage
+    def initialize(tests, jobs:, isolation:, seed:, timeout: nil, coverage: nil)
       @tests = tests
       @jobs = jobs
       @isolation = isolation
       @seed = seed
       @timeout = timeout
+      @coverage = coverage
     end
 
     # Runs batches of test indices in order (consuming them), yielding
@@ -65,51 +67,13 @@ module PaddedCell
         # A worker holding another worker's socket would keep it from ever
         # seeing EOF: keep only its own end.
         [parent, *@sockets].each(&:close)
-        work(slot.worker, child)
+        Worker.new(@tests, isolation: @isolation, seed: @seed, timeout: @timeout, probe: @coverage&.probe)
+              .run(slot.worker, child)
       end
       child.close
       @sockets << parent
       slot.socket = parent
       slot
-    end
-
-    # The worker process.
-    def work(worker, socket)
-      status = 1
-      begin
-        srand(@seed)
-        setup_error = after_fork(worker)
-        while (line = socket.gets)
-          payload = Results.dump(perform(Integer(line), socket, setup_error))
-          socket.write([payload.bytesize].pack('N'), payload)
-        end
-        Hooks.run_cleanup(worker) unless setup_error
-        status = 0
-      rescue Exception => e # anything: report it, then exit!
-        warn "padded_cell: worker #{worker} failed: #{e.class}: #{e.message}"
-      ensure
-        exit!(status)
-      end
-    end
-
-    # A failing after_fork hook fails every test of the worker, the way Rails
-    # parallel testing reports a broken parallelize_setup.
-    def after_fork(worker)
-      Hooks.run_after_fork(worker)
-      nil
-    rescue StandardError => e
-      e
-    end
-
-    def perform(index, socket, setup_error)
-      klass, name = @tests.fetch(index)
-      if setup_error
-        Results.crashed(klass, name, "after_fork hook failed: #{setup_error.class}: #{setup_error.message}")
-      elsif @isolation == :test
-        Cell.run(klass, name, seed: @seed, timeout: @timeout, close: [socket])
-      else
-        Cell.execute(klass, name)
-      end
     end
 
     def feed(slot)
@@ -123,6 +87,7 @@ module PaddedCell
       rescue Errno::EPIPE, Errno::ECONNRESET
         # The worker died between tests: its replacement gets this one.
         reap(slot)
+        @coverage&.lost_worker
         spawn(slot).socket.puts(slot.test)
       end
     end
@@ -177,6 +142,7 @@ module PaddedCell
 
     # Reports the running test of a dead worker and starts a new one.
     def replace(slot, message, time)
+      @coverage&.lost_worker
       klass, name = @tests.fetch(slot.test)
       report(slot, Results.crashed(klass, name, message, time:))
       return if @queue.empty? && @slots.all? { it.batch.empty? }

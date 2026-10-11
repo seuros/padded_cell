@@ -5,6 +5,7 @@ require 'minitest'
 require_relative '../padded_cell'
 require_relative 'results'
 require_relative 'cell'
+require_relative 'worker'
 require_relative 'pool'
 require_relative 'asylum'
 require_relative 'loader'
@@ -20,7 +21,8 @@ module PaddedCell
     DEFAULTS = {
       paths: [], jobs: Etc.nprocessors, seed: nil, include: nil, exclude: nil, shard: [0, 1],
       isolation: nil, timeout: nil, asylum: nil, fail_fast: false, verbose: false, show_skips: false,
-      list: false, junit: nil, json: nil, timings: 'tmp/padded_cell/timings.tsv', io: $stdout
+      list: false, junit: nil, json: nil, timings: 'tmp/padded_cell/timings.tsv', coverage: nil,
+      coverage_dir: nil, io: $stdout
     }.freeze
 
     attr_reader :options
@@ -30,7 +32,8 @@ module PaddedCell
       @options[:seed] ||= (ENV['SEED'] || Random.new_seed).to_i % 0xFFFF
     end
 
-    # Exit status: 0 when everything passed, 1 otherwise, 130 on Ctrl-C.
+    # Exit status: 0 when everything passed, 1 otherwise, 3 when only
+    # coverage is below a minimum, 130 on Ctrl-C.
     def run
       selection = Selection.parse(options[:paths])
       refs = Discovery.call(selection.files)
@@ -38,16 +41,34 @@ module PaddedCell
       return list(selection, refs, filter) if options[:list]
       raise Unsupported, 'padded_cell needs fork, which this Ruby does not have' unless Process.respond_to?(:fork)
 
+      @coverage = start_coverage if options[:coverage]
       Loader.call(selection.files, seed: options[:seed])
+      refuse_simplecov if @coverage
       if defined?(ActiveSupport::TestCase)
         require_relative 'active_support_hooks'
         ActiveSupportHooks.install
       end
       options[:isolation] ||= default_isolation
+      # Coverage thresholds hold for the whole suite only.
+      @whole = !selection.line_filtered? && !options[:include] && !options[:exclude]
       execute(Loader.tests.select { filter.call(*it) })
     end
 
     private
+
+    # Before the suite loads: nothing loaded earlier is measured.
+    def start_coverage
+      require_relative 'chart'
+      Chart::Accumulator.new(options[:coverage]).start
+    end
+
+    # Two tools cannot share Ruby's Coverage.
+    def refuse_simplecov
+      return unless defined?(::SimpleCov) && ::SimpleCov.respond_to?(:pid) && ::SimpleCov.pid
+
+      raise Unsupported, 'SimpleCov is running, and --coverage replaces it: remove SimpleCov.start (and any ' \
+                         'SimpleCov.result in parallelize_teardown) from the test helper'
+    end
 
     # A fork per test discards Active Record's connection pool, and with it
     # the fixtures loaded through it: every test would reload them. With
@@ -74,12 +95,28 @@ module PaddedCell
       reporter = build_reporter
       reporter.start
       retried = []
+      @coverage&.snapshot
       status = dispatch(tests, batches, reporter, retried) { |index, result| timings[ids[index]] = result.time }
       reporter.report
       report_asylum(retried)
+      covered = @coverage ? report_coverage(status, reporter) : true
       Timings.save(options[:timings], timings)
       after_run
-      finish(reporter, status, nothing_ran)
+      result = finish(reporter, status, nothing_ran)
+      result.zero? && !covered ? 3 : result
+    end
+
+    # Writes the coverage reports, even for a failing run; false when the
+    # coverage of a whole, passing, complete run is below a minimum.
+    def report_coverage(status, reporter)
+      raw = @coverage.finish(interrupted: status == 130)
+      return true unless raw
+
+      dir = options[:coverage_dir] || Chart.config.directory
+      document = Chart::Document.build(raw, config: Chart.config, shard: options[:shard], whole: @whole)
+      document.write(dir)
+      check = status.zero? && reporter.passed? && document.complete?
+      Chart::Report.new(document, dir:, io: options[:io]).call(check:)
     end
 
     # Yields each result as it arrives. With --asylum a failure is held back:
@@ -93,7 +130,7 @@ module PaddedCell
         retried << result if result.metadata? && (result.metadata[:flaky] || result.metadata[:asylum])
       end
       pool = Pool.new(tests, jobs: options[:jobs], isolation: options[:isolation], seed: options[:seed],
-                             timeout: options[:timeout])
+                             timeout: options[:timeout], coverage: @coverage)
       pool.run(batches) do |index, result|
         yield index, result
         failed = failed?(result)

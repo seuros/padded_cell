@@ -1,0 +1,558 @@
+{
+  "$schema": "https://raw.githubusercontent.com/simplecov-ruby/simplecov/main/schemas/coverage-v1.3.schema.json",
+  "meta": {
+    "schema_version": "1.3",
+    "simplecov_version": "1.3.2",
+    "command_name": "Unit Tests",
+    "command_names": [
+      "Unit Tests"
+    ],
+    "project_name": "Chart",
+    "timestamp": "2026-10-11T00:00:00.000+00:00",
+    "root": "/project",
+    "commit": null,
+    "primary_coverage": "line",
+    "line_coverage": true,
+    "branch_coverage": true,
+    "method_coverage": false
+  },
+  "total": {
+    "lines": {
+      "covered": 24,
+      "missed": 13,
+      "omitted": 49,
+      "total": 37,
+      "percent": 64.86486486486487,
+      "strength": 0.7567567567567568
+    },
+    "branches": {
+      "covered": 6,
+      "missed": 10,
+      "total": 16,
+      "percent": 37.5,
+      "strength": 0.4375
+    }
+  },
+  "coverage": {
+    "lib/calc.rb": {
+      "source": [
+        "# frozen_string_literal: true",
+        "",
+        "# Loaded by the runner before it forks: cells send it sparse.",
+        "class Calc",
+        "  def add(left, right) = left + right",
+        "",
+        "  def sign(number)",
+        "    if number.positive?",
+        "      :positive",
+        "    elsif number.negative?",
+        "      :negative",
+        "    else",
+        "      :zero",
+        "    end",
+        "  end",
+        "",
+        "  def never_called",
+        "    :never",
+        "  end",
+        "",
+        "  # :nocov:",
+        "  def debug",
+        "    warn inspect",
+        "  end",
+        "  # :nocov:",
+        "",
+        "  def maybe(flag) = flag ? :yes : :no",
+        "end"
+      ],
+      "lines": [
+        null,
+        null,
+        null,
+        1,
+        1,
+        null,
+        1,
+        3,
+        1,
+        2,
+        1,
+        null,
+        1,
+        null,
+        null,
+        null,
+        1,
+        0,
+        null,
+        null,
+        "ignored",
+        "ignored",
+        "ignored",
+        "ignored",
+        "ignored",
+        null,
+        2,
+        null
+      ],
+      "lines_covered_percent": 90.9090909090909,
+      "covered_lines": 10,
+      "missed_lines": 1,
+      "omitted_lines": 12,
+      "total_lines": 11,
+      "branches": [
+        {
+          "type": "then",
+          "start_line": 9,
+          "end_line": 9,
+          "coverage": 1,
+          "inline": false,
+          "report_line": 8
+        },
+        {
+          "type": "else",
+          "start_line": 10,
+          "end_line": 14,
+          "coverage": 2,
+          "inline": false,
+          "report_line": 9
+        },
+        {
+          "type": "then",
+          "start_line": 11,
+          "end_line": 11,
+          "coverage": 1,
+          "inline": false,
+          "report_line": 10
+        },
+        {
+          "type": "else",
+          "start_line": 13,
+          "end_line": 13,
+          "coverage": 1,
+          "inline": false,
+          "report_line": 12
+        },
+        {
+          "type": "then",
+          "start_line": 27,
+          "end_line": 27,
+          "coverage": 1,
+          "inline": true,
+          "report_line": 27
+        },
+        {
+          "type": "else",
+          "start_line": 27,
+          "end_line": 27,
+          "coverage": 0,
+          "inline": true,
+          "report_line": 27
+        }
+      ],
+      "branches_covered_percent": 83.33333333333333,
+      "covered_branches": 5,
+      "missed_branches": 1,
+      "total_branches": 6
+    },
+    "lib/directives.rb": {
+      "source": [
+        "# frozen_string_literal: true",
+        "",
+        "# Lines, branches and methods left out by directive comments.",
+        "module Directives",
+        "  def self.call(flag)",
+        "    # simplecov:disable branch",
+        "    value = flag ? :yes : :no",
+        "    # simplecov:enable branch",
+        "    report(value) if flag # simplecov:disable",
+        "    value",
+        "  end",
+        "",
+        "  # simplecov:disable",
+        "  def self.report(value)",
+        "    warn(value.inspect)",
+        "  end",
+        "  # simplecov:enable",
+        "",
+        "  def self.unused = :unused",
+        "end"
+      ],
+      "lines": [
+        null,
+        null,
+        null,
+        1,
+        1,
+        null,
+        1,
+        null,
+        "ignored",
+        1,
+        null,
+        null,
+        "ignored",
+        "ignored",
+        "ignored",
+        "ignored",
+        "ignored",
+        null,
+        1,
+        null
+      ],
+      "lines_covered_percent": 100.0,
+      "covered_lines": 5,
+      "missed_lines": 0,
+      "omitted_lines": 9,
+      "total_lines": 5,
+      "branches": [
+        {
+          "type": "then",
+          "start_line": 7,
+          "end_line": 7,
+          "coverage": "ignored",
+          "inline": true,
+          "report_line": 7
+        },
+        {
+          "type": "else",
+          "start_line": 7,
+          "end_line": 7,
+          "coverage": "ignored",
+          "inline": true,
+          "report_line": 7
+        },
+        {
+          "type": "then",
+          "start_line": 9,
+          "end_line": 9,
+          "coverage": "ignored",
+          "inline": true,
+          "report_line": 9
+        },
+        {
+          "type": "else",
+          "start_line": 9,
+          "end_line": 9,
+          "coverage": "ignored",
+          "inline": true,
+          "report_line": 9
+        }
+      ],
+      "branches_covered_percent": 100.0,
+      "covered_branches": 0,
+      "missed_branches": 0,
+      "total_branches": 0
+    },
+    "lib/early.rb": {
+      "source": [
+        "# frozen_string_literal: true",
+        "",
+        "# Tracked. Loaded before coverage starts when a test asks (RUBYOPT=-r).",
+        "module Early",
+        "  def self.call = :early",
+        "end"
+      ],
+      "lines": [
+        null,
+        null,
+        null,
+        0,
+        0,
+        null
+      ],
+      "lines_covered_percent": 0.0,
+      "covered_lines": 0,
+      "missed_lines": 2,
+      "omitted_lines": 4,
+      "total_lines": 2,
+      "branches": [],
+      "branches_covered_percent": 100.0,
+      "covered_branches": 0,
+      "missed_branches": 0,
+      "total_branches": 0
+    },
+    "lib/lazy.rb": {
+      "source": [
+        "# frozen_string_literal: true",
+        "",
+        "# Autoloaded by a test, after the fork: its cell (or worker) sends it dense.",
+        "module Lazy",
+        "  def self.call(flag)",
+        "    return :early if flag",
+        "",
+        "    :late",
+        "  end",
+        "",
+        "  def self.unused",
+        "    :unused",
+        "  end",
+        "end"
+      ],
+      "lines": [
+        null,
+        null,
+        null,
+        1,
+        1,
+        1,
+        null,
+        0,
+        null,
+        null,
+        1,
+        0,
+        null,
+        null
+      ],
+      "lines_covered_percent": 66.66666666666667,
+      "covered_lines": 4,
+      "missed_lines": 2,
+      "omitted_lines": 8,
+      "total_lines": 6,
+      "branches": [
+        {
+          "type": "then",
+          "start_line": 6,
+          "end_line": 6,
+          "coverage": 1,
+          "inline": true,
+          "report_line": 6
+        },
+        {
+          "type": "else",
+          "start_line": 6,
+          "end_line": 6,
+          "coverage": 0,
+          "inline": true,
+          "report_line": 6
+        }
+      ],
+      "branches_covered_percent": 50.0,
+      "covered_branches": 1,
+      "missed_branches": 1,
+      "total_branches": 2
+    },
+    "lib/shapes.rb": {
+      "source": [
+        "# frozen_string_literal: true",
+        "",
+        "# Methods of classes whose name differs from process to process.",
+        "Square = Struct.new(:side) do",
+        "  def area = side * side",
+        "end",
+        "",
+        "GREETER = Class.new do",
+        "  def hello = :hello",
+        "",
+        "  def bye = :bye",
+        "end"
+      ],
+      "lines": [
+        null,
+        null,
+        null,
+        1,
+        1,
+        null,
+        null,
+        1,
+        1,
+        null,
+        1,
+        null
+      ],
+      "lines_covered_percent": 100.0,
+      "covered_lines": 5,
+      "missed_lines": 0,
+      "omitted_lines": 7,
+      "total_lines": 5,
+      "branches": [],
+      "branches_covered_percent": 100.0,
+      "covered_branches": 0,
+      "missed_branches": 0,
+      "total_branches": 0
+    },
+    "lib/unused.rb": {
+      "source": [
+        "# frozen_string_literal: true",
+        "",
+        "# Tracked, never loaded: reported with every line and branch missed.",
+        "module Unused",
+        "  class Thing",
+        "    def call(value)",
+        "      return :none if value.nil?",
+        "",
+        "      case value",
+        "      when Integer then value.positive? ? :positive : :negative",
+        "      else value&.to_s",
+        "      end",
+        "    end",
+        "",
+        "    def self.build = new",
+        "  end",
+        "end"
+      ],
+      "lines": [
+        null,
+        null,
+        null,
+        0,
+        0,
+        0,
+        0,
+        null,
+        0,
+        0,
+        0,
+        null,
+        null,
+        null,
+        0,
+        null,
+        null
+      ],
+      "lines_covered_percent": 0.0,
+      "covered_lines": 0,
+      "missed_lines": 8,
+      "omitted_lines": 9,
+      "total_lines": 8,
+      "branches": [
+        {
+          "type": "then",
+          "start_line": 7,
+          "end_line": 7,
+          "coverage": 0,
+          "inline": true,
+          "report_line": 7
+        },
+        {
+          "type": "else",
+          "start_line": 7,
+          "end_line": 7,
+          "coverage": 0,
+          "inline": true,
+          "report_line": 7
+        },
+        {
+          "type": "when",
+          "start_line": 10,
+          "end_line": 10,
+          "coverage": 0,
+          "inline": false,
+          "report_line": 9
+        },
+        {
+          "type": "else",
+          "start_line": 11,
+          "end_line": 11,
+          "coverage": 0,
+          "inline": false,
+          "report_line": 10
+        },
+        {
+          "type": "then",
+          "start_line": 10,
+          "end_line": 10,
+          "coverage": 0,
+          "inline": true,
+          "report_line": 10
+        },
+        {
+          "type": "else",
+          "start_line": 10,
+          "end_line": 10,
+          "coverage": 0,
+          "inline": true,
+          "report_line": 10
+        },
+        {
+          "type": "then",
+          "start_line": 11,
+          "end_line": 11,
+          "coverage": 0,
+          "inline": true,
+          "report_line": 11
+        },
+        {
+          "type": "else",
+          "start_line": 11,
+          "end_line": 11,
+          "coverage": 0,
+          "inline": true,
+          "report_line": 11
+        }
+      ],
+      "branches_covered_percent": 0.0,
+      "covered_branches": 0,
+      "missed_branches": 8,
+      "total_branches": 8
+    }
+  },
+  "groups": {
+    "Core": {
+      "lines": {
+        "covered": 10,
+        "missed": 1,
+        "omitted": 12,
+        "total": 11,
+        "percent": 90.9090909090909,
+        "strength": 1.2727272727272727
+      },
+      "branches": {
+        "covered": 5,
+        "missed": 1,
+        "total": 6,
+        "percent": 83.33333333333333,
+        "strength": 1.0
+      },
+      "files": [
+        "lib/calc.rb"
+      ]
+    },
+    "Lazy": {
+      "lines": {
+        "covered": 4,
+        "missed": 2,
+        "omitted": 8,
+        "total": 6,
+        "percent": 66.66666666666667,
+        "strength": 0.6666666666666666
+      },
+      "branches": {
+        "covered": 1,
+        "missed": 1,
+        "total": 2,
+        "percent": 50.0,
+        "strength": 0.5
+      },
+      "files": [
+        "lib/lazy.rb"
+      ]
+    },
+    "Ungrouped": {
+      "lines": {
+        "covered": 10,
+        "missed": 10,
+        "omitted": 29,
+        "total": 20,
+        "percent": 50.0,
+        "strength": 0.5
+      },
+      "branches": {
+        "covered": 0,
+        "missed": 8,
+        "total": 8,
+        "percent": 0.0,
+        "strength": 0.0
+      },
+      "files": [
+        "lib/directives.rb",
+        "lib/early.rb",
+        "lib/shapes.rb",
+        "lib/unused.rb"
+      ]
+    }
+  },
+  "errors": {}
+}

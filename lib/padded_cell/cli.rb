@@ -2,6 +2,7 @@
 
 require 'optparse'
 require_relative 'runner'
+require_relative 'chart'
 
 module PaddedCell
   # The padded_cell command.
@@ -18,10 +19,13 @@ module PaddedCell
 
     module_function
 
-    # Exit status: 0 passed, 1 failed, 2 usage or load error, 130 interrupted.
+    # Exit status: 0 passed, 1 failed, 2 usage or load error, 3 coverage below
+    # a minimum, 130 interrupted.
     def start(argv, io: $stdout)
-      options = { io: }
+      options = { io:, coverage: coverage_criteria(ENV.fetch('PADDED_CELL_COVERAGE', nil)) }
       parser(options).parse!(argv)
+      return merge(options) if options[:coverage_merge]
+
       options[:paths] = argv
       Runner.new(**options).run
     rescue OptionParser::ParseError, ArgumentError, RegexpError, LoadFailure, Unsupported, SystemCallError => e
@@ -34,6 +38,7 @@ module PaddedCell
         opts.banner = BANNER
         opts.version = VERSION
         runner_options(opts, options)
+        coverage_options(opts, options)
         output_options(opts, options)
         opts.on('--version', 'Print the version') do
           options[:io].puts "padded_cell #{VERSION}"
@@ -73,6 +78,29 @@ module PaddedCell
       opts.on('--list', 'List the tests that would run (static, loads nothing)') { options[:list] = true }
     end
 
+    def coverage_options(opts, options)
+      opts.on('--[no-]coverage[=CRITERIA]', 'Measure coverage: lines, branches, methods, eval ' \
+                                            "(default: #{Chart::DEFAULT_CRITERIA.join(',')}; " \
+                                            'or $PADDED_CELL_COVERAGE)') do
+        options[:coverage] = coverage_criteria(it.to_s)
+      end
+      opts.on('--coverage-dir DIR', 'Write coverage reports to DIR (default: coverage, or the test helper\'s)') do
+        options[:coverage_dir] = it
+      end
+      opts.on('--coverage-merge DIR,DIR', Array, 'Merge the coverage of shards (their --coverage-dir) ' \
+                                                 'into one report; runs no test') do
+        options[:coverage_merge] = it
+      end
+    end
+
+    # --coverage-merge: 0, or 3 when a threshold is missed.
+    def merge(options)
+      document = Chart::Merge.call(options[:coverage_merge])
+      dir = options[:coverage_dir] || 'coverage'
+      document.write(dir)
+      Chart::Report.new(document, dir:, io: options[:io]).call(check: document.complete?) ? 0 : 3
+    end
+
     def output_options(opts, options)
       opts.on('-v', '--verbose', 'One line per test, with timings') { options[:verbose] = true }
       opts.on('--show-skips', 'Show skipped tests at the end') { options[:show_skips] = true }
@@ -94,6 +122,22 @@ module PaddedCell
       raise OptionParser::InvalidArgument, "#{value} (must be positive)" unless value.positive?
 
       value
+    end
+
+    # "branches,methods" => [:lines, :branches, :methods] (lines always);
+    # "1" or "true" => the defaults; nil, "", "0" or "false" => off.
+    def coverage_criteria(value)
+      value = value.to_s.strip.downcase
+      return if ['', '0', 'false'].include?(value)
+      return Chart::DEFAULT_CRITERIA if %w[1 true].include?(value)
+
+      names = value.split(',').map { it.strip.to_sym }
+      unknown = names - Chart::CRITERIA
+      unless unknown.empty?
+        raise OptionParser::InvalidArgument, "coverage #{unknown.join(',')} (known: #{Chart::CRITERIA.join(', ')})"
+      end
+
+      [:lines] | names
     end
 
     def shard(value)

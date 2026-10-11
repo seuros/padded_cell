@@ -18,6 +18,8 @@ use magnus::prelude::*;
 use magnus::{Error, RArray, RString, Ruby, function};
 use padded_cell::{Discovery, FileError};
 
+mod chart;
+
 /// `Errno::*` for the path, as Ruby's own file reading raises.
 fn file_error(ruby: &Ruby, error: &FileError) -> Error {
     let path = error.path.display().to_string();
@@ -116,5 +118,6 @@ fn init(ruby: &Ruby) -> Result<(), Error> {
     module.define_module_function("discover", function!(discover, 1))?;
     module.define_module_function("discover_files", function!(discover_files, 1))?;
     module.define_module_function("plan", function!(plan, 5))?;
+    module.define_module_function("chart_report", function!(chart::chart_report, 3))?;
     Ok(())
 }

@@ -13,14 +13,18 @@
 //! # Ok::<(), Box<dyn std::error::Error>>(())
 //! ```
 
+pub mod chart;
 mod discover;
+mod error;
 mod hash;
+mod parallel;
 mod plan;
 mod rng;
 
 pub use discover::{
-    Discovery, FileError, Iter, TestDef, discover, discover_file, discover_files, discover_many,
+    Discovery, Iter, TestDef, discover, discover_file, discover_files, discover_many,
 };
+pub use error::FileError;
 pub use hash::fnv1a64;
 pub use plan::plan;
 pub use rng::SplitMix64;

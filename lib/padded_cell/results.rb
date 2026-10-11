@@ -74,6 +74,19 @@ module PaddedCell
       placeholders << [owner, last]
     end
 
+    # What a cell sends its worker: its coverage delta (nil without
+    # coverage) beside its result. The outer layer holds only core types, so
+    # it loads even when the result does not.
+    def envelope(delta, result) = Marshal.dump([delta, dump(result)])
+
+    # [delta, result] from an envelope; never raises.
+    def unwrap(data, klass, name)
+      delta, payload = Marshal.load(data) # written by our own cell
+      [delta, load(payload, klass, name)]
+    rescue StandardError => e
+      [nil, crashed(klass, name, "its result could not be loaded: #{e.class}: #{e.message}")]
+    end
+
     # Marshal.dump, after replacing failures that cannot cross a pipe (an
     # exception holding a Proc, an IO...) with plain copies.
     def dump(result)

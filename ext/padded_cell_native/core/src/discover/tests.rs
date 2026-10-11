@@ -1,5 +1,7 @@
 use std::assert_matches;
+use std::fs;
 use std::io::ErrorKind;
+use std::path::PathBuf;
 
 use super::*;
 
