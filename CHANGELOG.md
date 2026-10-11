@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- `--seed` must be 0 to 2**64 - 1; others crashed the planner.
 - `--asylum[=N]`: retry failed tests (N times, default 2) after the run,
   alone and in fresh cells. Tests that pass on retry count as passed and are
   reported as flaky, with the likely cause (timing and shared state, or

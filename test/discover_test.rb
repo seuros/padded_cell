@@ -14,6 +14,18 @@ class DiscoverTest < Minitest::Test
     end
   end
 
+  # Half-written files: Prism recovers, discovery never raises. A test's
+  # end line may be one past the cut.
+  def test_every_truncated_prefix_of_the_fixtures
+    Fixtures.discovery.each_key do |path|
+      source = File.binread(path)
+      (0..source.bytesize).each do |cut|
+        rows = PaddedCellNative.discover(source.byteslice(0, cut))
+        rows.each { |row| assert_operator row[2], :<=, row[3], "#{path} cut at #{cut}" }
+      end
+    end
+  end
+
   def test_discovery_reads_files_into_test_refs
     Dir.mktmpdir do |dir|
       file = File.join(dir, 'user_test.rb')

@@ -16,6 +16,19 @@ class PlanTest < Minitest::Test
     assert_equal [[3, 7]], PaddedCell::Scheduler.batches(CLASSES, seed: 1234, shard: [2, 3])
   end
 
+  # Regressions: the median of an even number of known durations, -0.0 and
+  # 0.0 as one; every bit of a 64-bit seed reaching the planner; the stable
+  # hash that places a class in its shard.
+  def test_pinned_edges
+    durations = [-0.0, 0.0, 0.3, 0.7, 0.9, 1.1, -1.0]
+
+    assert_equal [[5], [4], [3], [6], [2], [0], [1]], PaddedCellNative.plan(%w[Z O B C D E U], durations, 5, 0, 1)
+    assert_equal [[7, 3], [4, 1], [6], [0, 5, 2]], PaddedCellNative.plan(CLASSES, [-1.0] * 8, (2**64) - 1, 0, 1)
+    { 2 => 0, 3 => 1, 5 => 1, 7 => 5, 11 => 7 }.each do |count, shard|
+      assert_equal [[0]], PaddedCellNative.plan(%w[a], [-1.0], 1, shard, count), "shard #{shard} of #{count}"
+    end
+  end
+
   def test_shards_partition_the_tests_by_class
     classes = Array.new(200) { "Suite#{it % 23}Test" }
     shards = Array.new(4) { PaddedCell::Scheduler.batches(classes, seed: 9, shard: [it, 4]) }

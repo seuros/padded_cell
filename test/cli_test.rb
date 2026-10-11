@@ -35,6 +35,8 @@ class CLITest < Minitest::Test
       [%w[--isolation cage], 'invalid argument: --isolation cage'],
       [%w[-j 0], 'invalid argument: -j 0 (must be positive)'],
       [%w[--timeout -1], 'invalid argument: --timeout -1.0 (must be positive)'],
+      [%w[--seed -1], 'invalid argument: --seed -1 (must be 0 to 2**64 - 1)'],
+      [%W[--seed #{2**64}], "invalid argument: --seed #{2**64} (must be 0 to 2**64 - 1)"],
       [%w[test/missing_test.rb], 'no such test file: test/missing_test.rb'],
       [['-n', '/[/'], 'padded_cell: premature end of char-class: /[/'],
       [['--list', '-e', '/[/'], 'padded_cell: premature end of char-class: /[/']

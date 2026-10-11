@@ -50,7 +50,7 @@ module PaddedCell
       opts.on('-j', '--jobs N', Integer, "Workers (default: #{Etc.nprocessors})") do
         options[:jobs] = positive(it)
       end
-      opts.on('-s', '--seed SEED', Integer, 'Order seed (default: random, or $SEED)') { options[:seed] = it }
+      opts.on('-s', '--seed SEED', Integer, 'Order seed (default: random, or $SEED)') { options[:seed] = seed(it) }
       opts.on('-n', '-i', '--name', '--include PATTERN', 'Only tests matching (/regexp/ or exact name)') do
         options[:include] = it
       end
@@ -80,6 +80,13 @@ module PaddedCell
       opts.on('--json PATH', 'Also write JSON lines to PATH') { options[:json] = it }
       opts.on('--timings PATH', 'Timings file (default: tmp/padded_cell/timings.tsv)') { options[:timings] = it }
       opts.on('--no-timings', 'Neither read nor write timings') { options[:timings] = nil }
+    end
+
+    # The planner takes an unsigned 64-bit seed.
+    def seed(value)
+      raise OptionParser::InvalidArgument, "#{value} (must be 0 to 2**64 - 1)" unless value.between?(0, (2**64) - 1)
+
+      value
     end
 
     # OptionParser names the switch in the message.
