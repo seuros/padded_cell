@@ -186,8 +186,16 @@ module PaddedCell
     end
 
     def reap(slot)
+      close_socket(slot)
+      wait_for(slot)
+    end
+
+    def close_socket(slot)
       @sockets.delete(slot.socket)
       slot.socket.close
+    end
+
+    def wait_for(slot)
       _, status = Process.wait2(slot.pid)
       slot.pid = nil
       status
@@ -198,7 +206,8 @@ module PaddedCell
     def shutdown(force:)
       live = Array(@slots).select(&:pid)
       live.each { Process.kill(:KILL, it.pid) } if force
-      @success = live.map { reap(it) }.all?(&:success?)
+      live.each { close_socket(it) }
+      @success = live.map { wait_for(it) }.all?(&:success?)
     end
   end
 end

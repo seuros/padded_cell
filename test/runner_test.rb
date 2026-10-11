@@ -140,6 +140,15 @@ class RunnerTest < Minitest::Test
     end
   end
 
+  def test_workers_clean_up_concurrently
+    %w[test worker].each do |isolation|
+      run = padded_cell('--no-timings', '--isolation', isolation, '-j', '2', suite: 'concurrent_cleanup')
+
+      assert_equal [2, 2, 0, 0, 0], run.summary
+      assert_equal 0, run.exitstatus, "#{isolation}: #{run.out}#{run.err}"
+    end
+  end
+
   def test_cleanup_errors_fail_the_run
     %w[test worker].each do |isolation|
       run = padded_cell('--no-timings', '--isolation', isolation, '-j', '2', suite: 'cleanup_error')
