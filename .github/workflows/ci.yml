@@ -22,7 +22,7 @@ jobs:
         with:
           components: rustfmt, clippy
       - uses: Swatinem/rust-cache@v2
-      - uses: seuros/dictator-setup@v1
+      - uses: seuros/setup-dictator@master
       - run: dictator lint .
       - run: cargo fmt --all --check
       - run: cargo clippy --workspace --all-targets
