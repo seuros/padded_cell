@@ -2,6 +2,7 @@
 
 require 'bundler/gem_tasks'
 require 'minitest/test_task'
+require_relative 'tasks/release'
 
 GEMSPEC = Gem::Specification.load('padded_cell.gemspec')
 CARGO_MANIFEST = 'Cargo.toml'
@@ -75,12 +76,14 @@ namespace :gem do
     rm_rf File.dirname(staged) if staged
   end
 
-  desc 'Push every built gem for this version to RubyGems'
-  task :push_all do
-    gems = Dir["pkg/padded_cell-#{GEMSPEC.version}*.gem"]
-    abort "no gems in pkg/ for #{GEMSPEC.version}" if gems.empty?
+  desc 'Fetch and digest-verify the GitHub release gems into pkg/ (default: this version)'
+  task :fetch, [:tag] do |_task, args|
+    PaddedCellRelease.fetch(args[:tag])
+  end
 
-    gems.each { sh 'gem', 'push', it }
+  desc 'Fetch the verified release gems and push every platform to RubyGems (resumable)'
+  task :push_all, [:tag] do |_task, args|
+    PaddedCellRelease.push_all(args[:tag])
   end
 end
 
@@ -90,5 +93,5 @@ task default: 'test:all'
 Rake::Task['release'].clear
 desc 'Release: tag, then push the gems built by the release workflow (rake gem:push_all)'
 task :release do
-  abort 'Use the release workflow, then `rake gem:push_all` with every gem in pkg/'
+  abort 'Use the release workflow (push a v* tag), then `rake gem:push_all`'
 end
