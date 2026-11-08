@@ -22,7 +22,8 @@ module PaddedCell
     # Exit status: 0 passed, 1 failed, 2 usage or load error, 3 coverage below
     # a minimum, 130 interrupted.
     def start(argv, io: $stdout)
-      options = { io:, coverage: coverage_criteria(ENV.fetch('PADDED_CELL_COVERAGE', nil)), **report_paths }
+      options = { io:, coverage: coverage_criteria(ENV.fetch('PADDED_CELL_COVERAGE', nil)), **report_paths,
+                  **asylum_from_env }
       parser(options).parse!(argv)
       return merge(options) if options[:coverage_merge]
 
@@ -38,6 +39,15 @@ module PaddedCell
     def report_paths
       { json: ENV.fetch('PADDED_CELL_JSON', nil), junit: ENV.fetch('PADDED_CELL_JUNIT', nil) }
         .reject { |_, path| path.nil? || path.empty? }
+    end
+
+    # PADDED_CELL_ASYLUM=N, or 1/true for the default 2 retries; --asylum wins.
+    def asylum_from_env
+      value = ENV.fetch('PADDED_CELL_ASYLUM', '').strip
+      return {} if value.empty? || %w[0 false no off].include?(value.downcase)
+      return { asylum: 2 } if %w[true yes on].include?(value.downcase)
+
+      { asylum: positive(Integer(value, 10)) }
     end
 
     def parser(options)

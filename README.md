@@ -72,6 +72,7 @@ $ padded_cell --timeout 30                 # kill and fail anything running 30s
 $ padded_cell --budget 600                 # the whole run gets 10 minutes; what's left out fails it
 $ padded_cell --fail-fast
 $ padded_cell --asylum                     # retry failures; report the flaky ones (see below)
+$ PADDED_CELL_ASYLUM=2 padded_cell         # same, from a CI runner's env
 $ padded_cell --list                       # what would run, without loading anything
 $ padded_cell --shard 2/4                  # CI: the second quarter of the classes
 $ padded_cell --junit tmp/junit.xml --json tmp/results.jsonl

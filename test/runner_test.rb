@@ -95,6 +95,22 @@ class RunnerTest < Minitest::Test
     assert_equal 0, run.exitstatus
   end
 
+  def test_the_environment_turns_asylum_on
+    Dir.mktmpdir do |dir|
+      run = padded_cell('--no-timings', '-s', unlucky_seed.to_s, '-e', 'test_always_fails',
+                        suite: 'flaky', env: { 'FLAKY_DIR' => dir, 'PADDED_CELL_ASYLUM' => '2' })
+
+      assert_equal 0, run.exitstatus
+      assert_includes run.out, "You're not crazy, the world is."
+    end
+  end
+
+  def test_an_asylum_of_zero_in_the_environment_leaves_it_off
+    run = flaky_run(env: { 'PADDED_CELL_ASYLUM' => '0' })
+
+    refute_equal 0, run.exitstatus
+  end
+
   # --asylum=1 is one retry, with the run's own seed: not enough for a test
   # that needs another seed.
   def test_asylum_attempts_are_bounded
@@ -369,9 +385,9 @@ class RunnerTest < Minitest::Test
     assert_equal seeds.map(&:to_s).zip(outcomes), lines
   end
 
-  def flaky_run(*args)
+  def flaky_run(*args, env: {})
     Dir.mktmpdir do |dir|
-      padded_cell('--no-timings', '-s', unlucky_seed.to_s, *args, suite: 'flaky', env: { 'FLAKY_DIR' => dir })
+      padded_cell('--no-timings', '-s', unlucky_seed.to_s, *args, suite: 'flaky', env: { 'FLAKY_DIR' => dir, **env })
     end
   end
 
