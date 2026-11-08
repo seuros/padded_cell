@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.3.0 (2026-11-08)
 
 - `--budget SECONDS`: a deadline for the whole run, loading included. Once
   it's spent, nothing more is dispatched and running tests are killed. Tests
