@@ -77,6 +77,10 @@ module PaddedCell
       opts.on('--timeout SECONDS', Float, 'Kill and fail a test running longer') do
         options[:timeout] = positive(it)
       end
+      opts.on('--budget SECONDS', Float, 'Stop dispatching once the run has taken SECONDS (and kill and ' \
+                                         'fail what runs past it); tests left out fail the run') do
+        options[:budget] = positive(it)
+      end
       opts.on('--fail-fast', 'Stop dispatching after the first failure') { options[:fail_fast] = true }
       opts.on('--asylum[=N]', Integer, 'Retry failed tests up to N times (default 2) after the run, alone, ' \
                                        'each in a fresh cell; report the flaky ones') do

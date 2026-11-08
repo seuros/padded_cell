@@ -6,12 +6,12 @@ module PaddedCell
   # Minitest::Result as a length-prefixed Marshal frame. Exits once the
   # socket closes.
   class Worker
-    # probe: a Chart::Probe when measuring coverage
-    def initialize(tests, isolation:, seed:, timeout:, probe:)
+    # limits: the run's Limits; probe: a Chart::Probe when measuring coverage
+    def initialize(tests, isolation:, seed:, limits:, probe:)
       @tests = tests
       @isolation = isolation
       @seed = seed
-      @timeout = timeout
+      @limits = limits
       @probe = probe
     end
 
@@ -54,7 +54,7 @@ module PaddedCell
       if setup_error
         Results.crashed(klass, name, "after_fork hook failed: #{setup_error.class}: #{setup_error.message}")
       elsif @isolation == :test
-        Cell.run(klass, name, seed: @seed, timeout: @timeout, close: [socket], probe: @probe)
+        Cell.run(klass, name, seed: @seed, limits: @limits, close: [socket], probe: @probe)
       else
         Cell.execute(klass, name)
       end

@@ -4,6 +4,7 @@ require 'etc'
 require 'minitest'
 require_relative '../padded_cell'
 require_relative 'results'
+require_relative 'limits'
 require_relative 'cell'
 require_relative 'worker'
 require_relative 'pool'
@@ -20,7 +21,7 @@ module PaddedCell
   class Runner
     DEFAULTS = {
       paths: [], jobs: Etc.nprocessors, seed: nil, include: nil, exclude: nil, shard: [0, 1],
-      isolation: nil, timeout: nil, asylum: nil, fail_fast: false, verbose: false, show_skips: false,
+      isolation: nil, timeout: nil, budget: nil, asylum: nil, fail_fast: false, verbose: false, show_skips: false,
       list: false, junit: nil, json: nil, timings: 'tmp/padded_cell/timings.tsv', coverage: nil,
       coverage_dir: nil, io: $stdout
     }.freeze
@@ -35,6 +36,8 @@ module PaddedCell
     # Exit status: 0 when everything passed, 1 otherwise, 3 when only
     # coverage is below a minimum, 130 on Ctrl-C.
     def run
+      # The budget covers the whole run, loading included.
+      @limits = Limits.new(timeout: options[:timeout], budget: options[:budget])
       selection = Selection.parse(options[:paths])
       refs = Discovery.call(selection.files)
       filter = Filter.new(selection, refs, include: options[:include], exclude: options[:exclude])
@@ -121,7 +124,8 @@ module PaddedCell
 
     # Yields each result as it arrives. With --asylum a failure is held back:
     # only its final result, after the retries, is reported. Returns 1 when a
-    # worker failed (its cleanup hook), 130 when interrupted, 0 otherwise.
+    # worker failed (its cleanup hook) or tests were left out (the budget ran
+    # out, workers kept dying), 130 when interrupted, 0 otherwise.
     def dispatch(tests, batches, reporter, retried)
       held = {}
       record = lambda do |index, result|
@@ -130,15 +134,16 @@ module PaddedCell
         retried << result if result.metadata? && (result.metadata[:flaky] || result.metadata[:asylum])
       end
       pool = Pool.new(tests, jobs: options[:jobs], isolation: options[:isolation], seed: options[:seed],
-                             timeout: options[:timeout], coverage: @coverage)
+                             limits: @limits, coverage: @coverage)
       pool.run(batches) do |index, result|
         yield index, result
         failed = failed?(result)
         options[:asylum] && failed ? held[index] = result : record.call(index, result)
         pool.stop! if options[:fail_fast] && failed
       end
+      complete = report_left_out(pool)
       retries_ok = retry_held(tests, held, record)
-      pool.success? && retries_ok ? 0 : 1
+      pool.success? && retries_ok && complete ? 0 : 1
     rescue Interrupt
       warn 'Interrupted. Exiting...'
       # Failures still waiting for a retry are failures.
@@ -146,11 +151,31 @@ module PaddedCell
       130
     end
 
+    # False when tests never ran because the budget ran out or workers kept
+    # dying. --fail-fast leaving them out is what it asked for.
+    def report_left_out(pool)
+      left_out = pool.undispatched
+      if pool.gave_up
+        warn "padded_cell: #{pool.gave_up}; gave up, #{left_out} tests not run"
+      elsif @limits.spent? && left_out.positive?
+        warn "padded_cell: run budget of #{@limits.budget}s spent, #{left_out} tests not run"
+      else
+        return true
+      end
+      false
+    end
+
     # False when a retry's worker failed.
     def retry_held(tests, held, record)
       return true if held.empty?
 
-      asylum = Asylum.new(tests, attempts: options[:asylum], seed: options[:seed], timeout: options[:timeout])
+      # No budget left to retry in: failures stay failures.
+      if @limits.spent?
+        held.each { |index, result| record.call(index, result) }
+        return true
+      end
+
+      asylum = Asylum.new(tests, attempts: options[:asylum], seed: options[:seed], limits: @limits)
       asylum.call(held) do |index, result|
         held.delete(index)
         record.call(index, result)

@@ -69,6 +69,7 @@ $ padded_cell user_test.rb:12-30:41        # tests overlapping 12..30, or spanni
 $ padded_cell -n /refund/ -e test_slow     # Minitest's --include / --exclude
 $ padded_cell -j 8 --seed 1234             # 8 workers, reproducible order
 $ padded_cell --timeout 30                 # kill and fail anything running 30s
+$ padded_cell --budget 600                 # the whole run gets 10 minutes; what's left out fails it
 $ padded_cell --fail-fast
 $ padded_cell --asylum                     # retry failures; report the flaky ones (see below)
 $ padded_cell --list                       # what would run, without loading anything
@@ -110,6 +111,23 @@ cheap, and order-dependent tests stop depending on order.
 `--isolation worker` runs tests directly in the long-lived workers, like
 Rails' `parallelize`. A worker that crashes or times out is still reported
 and replaced.
+
+Replaced up to a point. If workers keep dying, say a boot that segfaults or an
+`after_fork` hook that calls `exit`, every remaining test would come back as a
+crash report, one fork at a time. So past 4 deaths per worker in 10 seconds
+(16 at least), padded_cell gives up: it lists how many tests never ran and
+exits 1. The decision comes from
+[supervisor_machines](https://github.com/seuros/supervisor_machines), the same
+one-for-one restart intensity OTP uses.
+
+### Budget
+
+`--budget SECONDS` caps the whole run, loading included. Once it's spent,
+nothing more is dispatched, and a test still running is killed and fails
+("run budget of 600.0s spent"). A test's `--timeout` never outlives the
+budget. If the budget left tests out, the run fails and says how many. The
+deadline math comes from
+[deadline_machines](https://github.com/seuros/deadline_machines).
 
 The default is `test`, except when Active Record fixtures are loaded: a fork
 discards Active Record's connection pool, and every test would reload its
@@ -306,7 +324,9 @@ PaddedCell::Scheduler.batches(class_names, durations: seconds, seed: 42, shard: 
 ## Rust
 
 The extension lives in `ext/padded_cell_native`: `core` does discovery and
-scheduling in plain Rust (no Ruby types), `ffi` binds it to Ruby. Neither is
+scheduling in plain Rust (no Ruby types), `ffi` binds it to Ruby. Worker
+supervision and deadlines come from the published `supervisor-machines` and
+`deadline-machines` crates. Neither is
 published as a crate.
 
 ## Development

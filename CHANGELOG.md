@@ -1,5 +1,18 @@
 # Changelog
 
+## Unreleased
+
+- `--budget SECONDS`: a deadline for the whole run, loading included. Once
+  it's spent, nothing more is dispatched and running tests are killed. Tests
+  it left out fail the run (exit 1). `--timeout` never outlives it.
+- Workers that keep dying (more than 4 per worker, at least 16, in 10s) are
+  no longer replaced forever. padded_cell gives up, reports how many tests
+  never ran, and exits 1. Uses `supervisor-machines`.
+- A replacement worker that died before its first test crashed the run with
+  `Errno::EPIPE` (exit 2). A worker reset mid-frame is now reported as dead.
+- `--asylum` retry seeds keep all 64 bits: they were folded modulo 0xffff,
+  so large `--seed`s shared the same few retry seeds.
+
 ## 0.2.0 (2026-10-11)
 
 - Built-in coverage: `--coverage[=lines,branches,methods,eval]` (or

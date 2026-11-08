@@ -1,5 +1,6 @@
-//! Static Minitest discovery and deterministic test scheduling: the engine
-//! of the [padded_cell](https://github.com/seuros/padded_cell) test runner.
+//! Static Minitest discovery, deterministic test scheduling and worker
+//! supervision: the engine of the
+//! [padded_cell](https://github.com/seuros/padded_cell) test runner.
 //!
 //! ```
 //! let source = b"class UserTest < Minitest::Test\n  def test_valid\n  end\nend\n";
@@ -19,6 +20,7 @@ mod error;
 mod hash;
 mod parallel;
 mod plan;
+pub mod restarts;
 mod rng;
 
 pub use discover::{
@@ -27,6 +29,7 @@ pub use discover::{
 pub use error::FileError;
 pub use hash::fnv1a64;
 pub use plan::plan;
+pub use restarts::Restarts;
 pub use rng::SplitMix64;
 
 #[cfg(doctest)]

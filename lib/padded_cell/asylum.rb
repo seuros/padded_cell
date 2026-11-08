@@ -13,18 +13,20 @@ module PaddedCell
   class Asylum
     ALONE = 'timing, contention or state left by other tests'
     RESEEDED = 'randomness or test order'
+    SEEDS = 2**64
 
     # The seed of retry attempt, derived from the run's seed so a report can
-    # be replayed. Attempt 1 keeps the run's seed.
+    # be replayed. Attempt 1 keeps the run's seed. Wraps within the planner's
+    # 64-bit seeds, as --seed accepts them.
     def self.retry_seed(seed, attempt)
-      attempt == 1 ? seed : (seed + (attempt * 0x9e37)) % 0xffff
+      attempt == 1 ? seed : (seed + (attempt * 0x9e37)) % SEEDS
     end
 
-    def initialize(tests, attempts:, seed:, timeout: nil)
+    def initialize(tests, attempts:, seed:, limits: Limits.new)
       @tests = tests
       @attempts = attempts
       @seed = seed
-      @timeout = timeout
+      @limits = limits
       @success = true
     end
 
@@ -58,7 +60,7 @@ module PaddedCell
     def retry_round(pending, history, attempt)
       seed = self.class.retry_seed(@seed, attempt)
       passed = []
-      pool = Pool.new(@tests, jobs: 1, isolation: :test, seed:, timeout: @timeout)
+      pool = Pool.new(@tests, jobs: 1, isolation: :test, seed:, limits: @limits)
       pool.run([pending.dup]) do |index, result|
         recovered = result.passed? && !result.skipped?
         history[index] << attempt_entry(seed, true, recovered ? nil : result)

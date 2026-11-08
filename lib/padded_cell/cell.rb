@@ -9,19 +9,21 @@ module PaddedCell
     module_function
 
     # Runs klass#name in a fork and returns its Minitest::Result, or an error
-    # result when the cell died or ran past timeout seconds.
+    # result when the cell died or ran past its deadline.
     #
-    #   close: descriptors the cell must not keep open (the worker's socket)
-    #   probe: the worker's Chart::Probe, which gets the cell's coverage
-    def run(klass, name, seed:, timeout: nil, close: [], probe: nil)
+    #   limits: the run's Limits (--timeout, --budget); nil: no deadline
+    #   close:  descriptors the cell must not keep open (the worker's socket)
+    #   probe:  the worker's Chart::Probe, which gets the cell's coverage
+    def run(klass, name, seed:, limits: nil, close: [], probe: nil)
       # Binary: the result is Marshal data, and with Encoding.default_internal
       # set (Rails sets it) a text-mode pipe transcodes what is written to it.
       reader, writer = IO.pipe
       [reader, writer].each(&:binmode)
       started = Minitest.clock_time
+      deadline = limits&.for_test
       pid = fork_cell(klass, name, seed, reader, writer, close, probe)
       writer.close
-      delta, result = collect(pid, reader, klass, name, started, timeout)
+      delta, result = collect(pid, reader, klass, name, started, deadline) { limits.message(deadline) }
       delta ? probe.absorb(delta) : probe&.lost
       result
     ensure
@@ -59,14 +61,15 @@ module PaddedCell
       end
     end
 
-    # [coverage delta or nil, result]
-    def collect(pid, reader, klass, name, started, timeout)
-      data = read(reader, timeout && (started + timeout))
+    # [coverage delta or nil, result]. Yields for the message of a cell
+    # killed at its deadline.
+    def collect(pid, reader, klass, name, started, deadline)
+      data = read(reader, deadline)
       elapsed = Minitest.clock_time - started
       if data.nil?
         Process.kill(:KILL, pid)
         Process.wait(pid)
-        return [nil, Results.crashed(klass, name, "timed out after #{timeout}s", time: elapsed)]
+        return [nil, Results.crashed(klass, name, yield, time: elapsed)]
       end
 
       _, status = Process.wait2(pid)
@@ -75,11 +78,11 @@ module PaddedCell
       [nil, Results.crashed(klass, name, Results.describe(status, 'cell'), time: elapsed)]
     end
 
-    # Everything until EOF, or nil when the deadline passes first.
+    # Everything until EOF, or nil when the deadline (if any) passes first.
     def read(io, deadline)
       data = String.new(encoding: Encoding::BINARY)
       loop do
-        remaining = deadline && (deadline - Minitest.clock_time)
+        remaining = deadline && Limits.remaining(deadline)
         return if remaining&.<= 0
         next unless io.wait_readable(remaining)
 

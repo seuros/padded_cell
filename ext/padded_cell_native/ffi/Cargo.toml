@@ -15,5 +15,6 @@ crate-type = ["cdylib"]
 workspace = true
 
 [dependencies]
+deadline_machines.workspace = true
 magnus.workspace = true
 padded_cell.workspace = true

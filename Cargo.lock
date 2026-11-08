@@ -74,6 +74,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "deadline-machines"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "805cba0e8981fd367f11a17886e0ad53b84365601f5d39d8b66819f9bd0ba463"
+
+[[package]]
 name = "either"
 version = "1.19.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -223,6 +229,7 @@ name = "padded_cell"
 version = "0.2.0"
 dependencies = [
  "ruby-prism",
+ "supervisor-machines",
  "tempfile",
  "thiserror",
 ]
@@ -231,6 +238,7 @@ dependencies = [
 name = "padded_cell_native"
 version = "0.2.0"
 dependencies = [
+ "deadline-machines",
  "magnus",
  "padded_cell",
 ]
@@ -434,6 +442,12 @@ name = "shlex"
 version = "2.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f8fadd59c855ef2080decdef8ff161eb6661b86933c9d82e5ba29dc602a55aba"
+
+[[package]]
+name = "supervisor-machines"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "89f7646079e8a1b802737bb514b9c68e8e0743c046c9fb3c570b50e38ba03121"
 
 [[package]]
 name = "syn"
