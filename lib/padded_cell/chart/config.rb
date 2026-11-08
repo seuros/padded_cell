@@ -65,6 +65,12 @@ module PaddedCell
       end
       alias filter skip
 
+      # Whether a filter leaves the file out (path absolute, name relative).
+      def skipped?(path, name)
+        file = SourceFile.new(path, name)
+        @filters.any? { it.call(file) }
+      end
+
       # Removes every filter, the defaults included.
       def clear_filters = @filters.clear
 

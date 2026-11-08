@@ -18,6 +18,8 @@ if defined?(PaddedCell.coverage)
     dir ENV['COVERAGE_DIR'] if ENV['COVERAGE_DIR']
     formats(*ENV['COVERAGE_FORMATS'].split(',')) if ENV['COVERAGE_FORMATS']
   end
+  # Project code a worker runs outside any test.
+  PaddedCell.after_fork { Calc.new.never_called } if ENV['AFTER_FORK_CALC']
 end
 
 require 'calc'

@@ -103,6 +103,52 @@ module PaddedCell
       def escape(text) = text.to_s.scrub.gsub(INVALID, '').gsub(/[&<>"']/, ESCAPES)
     end
 
+    # --coverage-map: per test, the lines of the project it ran, one JSON
+    # object per line, in id order:
+    #
+    #   {"id":"SignTest#test_zero","file":"test/calc_test.rb","line":28,
+    #    "covers":{"lib/calc.rb":[[7,8],10,13]}}
+    #
+    # Line numbers ascend; [first, last] stands for a run of consecutive
+    # ones. Files are those the coverage report would show. A test that was
+    # not measured (its cell or worker died) is left out.
+    class CoverageMap < FileReporter
+      # coverage: the run's Chart::Accumulator
+      def initialize(path, coverage:)
+        super(path)
+        @coverage = coverage
+      end
+
+      # A first attempt, as it arrives: what it ran comes off its metadata.
+      def record(result)
+        covers = result.metadata? && result.metadata.delete(:covers)
+        @results << entry(result, covers) if covers
+      end
+
+      private
+
+      def render(entries) = entries.sort_by { it[:id] }.map { "#{JSON.generate(it)}\n" }.join
+
+      def entry(result, covers)
+        file, line = file_and_line(result)
+        { id: "#{result.klass}##{result.name}", file:, line:, covers: files(covers) }
+      end
+
+      # Two paths can name one file (a symlink): their lines are merged.
+      def files(covers)
+        files = Hash.new { |hash, name| hash[name] = [] }
+        covers.each do |path, lines|
+          name = @coverage.project_file(path)
+          files[name].concat(lines) if name
+        end
+        files.sort.to_h { |name, lines| [name, ranges(lines.uniq.sort)] }
+      end
+
+      def ranges(lines)
+        lines.slice_when { |previous, line| line != previous + 1 }.map { it.size == 1 ? it[0] : [it[0], it[-1]] }
+      end
+    end
+
     # One JSON object per test, one per line.
     class JSONLines < FileReporter
       private

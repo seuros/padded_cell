@@ -51,15 +51,24 @@ impl Source {
     /// The 1-based line and the 0-based byte column of `offset`.
     #[must_use]
     pub fn position(&self, offset: usize) -> (u32, u32) {
-        let line = self.ends.partition_point(|&end| end <= offset);
+        let line = self.line_index(offset);
         let number = |value: usize| u32::try_from(value).unwrap_or(u32::MAX);
-        (number(line.strict_add(1)), number(offset.strict_sub(self.line_start(offset))))
+        (number(line.strict_add(1)), number(offset.strict_sub(self.start_of(line))))
     }
 
     /// Where the line holding `offset` starts.
     #[must_use]
     pub fn line_start(&self, offset: usize) -> usize {
-        let line = self.ends.partition_point(|&end| end <= offset);
+        self.start_of(self.line_index(offset))
+    }
+
+    /// The 0-based line holding `offset`.
+    fn line_index(&self, offset: usize) -> usize {
+        self.ends.partition_point(|&end| end <= offset)
+    }
+
+    /// Where the 0-based `line` starts.
+    fn start_of(&self, line: usize) -> usize {
         line.checked_sub(1).map_or(0, |previous| self.ends[previous])
     }
 

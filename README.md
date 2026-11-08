@@ -272,6 +272,38 @@ The merge refuses files that differ between shards or from the checkout,
 and checks thresholds when every shard of the run is there. Lines that run
 while the suite loads count once per shard.
 
+### Coverage map
+
+Which lines each test ran, so CI can rerun only the tests touching a diff:
+
+```console
+$ padded_cell --coverage-map tmp/coverage_map.jsonl
+$ PADDED_CELL_COVERAGE_MAP=tmp/coverage_map.jsonl padded_cell   # same; the flag wins
+```
+
+One JSON object per test, in id order, written at the end of the run:
+
+```json
+{"id":"SignTest#test_zero","file":"test/calc_test.rb","line":28,"covers":{"lib/calc.rb":[[7,8],10,13]}}
+```
+
+`covers` holds the files the coverage report shows (filters apply, `test/`
+stays out), each with its line numbers ascending, `[first, last]` for a run
+of consecutive ones. Lines a test runs while loading a file count for it.
+
+Ruby's line coverage never sees a call to `def add(a, b) = a + b`: with
+`methods` measured, every method a test called adds its def line. Without
+`--coverage`, the map turns on `lines,methods`. With it, the map adds no
+criterion, so the report is byte for byte the same as without the map:
+include `methods`, or one-liners go unmapped.
+
+First attempts only, like the report. A test whose cell or worker died is
+left out: it was not measured, so a selector should run it anyway.
+
+A cell's measure is already its test's: free under `--isolation test`. With
+`--isolation worker`, Ruby copies the coverage of every loaded file twice per
+test (about 24 ms with 800 files loaded, more in a big Rails app).
+
 ### Cost
 
 Measuring is opt-in: Ruby's instrumentation slows tests down. On a Rails

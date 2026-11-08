@@ -51,6 +51,19 @@ module PaddedCell
         total
       end
 
+      # {path => [line number, ...]}: the lines that ran, ascending, by file.
+      # A call to `def add(a, b) = a + b` runs no line Ruby sees: methods,
+      # when measured, add the first line of every method that ran.
+      def ran(delta)
+        delta.each_with_object({}) do |(path, entry), ran|
+          lines = entry[:lines]
+          indices = lines.is_a?(Hash) ? lines.keys : lines.each_index.select { lines[it]&.positive? }
+          numbers = indices.map { it + 1 }
+          entry[:methods]&.each { |(_, first), (_, hits)| numbers << first if hits.positive? }
+          ran[path] = numbers.uniq.sort unless numbers.empty?
+        end
+      end
+
       # Coverage's arrays are frozen.
       def dense(data)
         {

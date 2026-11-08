@@ -19,7 +19,7 @@ module PaddedCell
         loaded = loaded_features
         never, @unmeasured = tracked(files).partition { !loaded.include?(File.join(root, it)) }
         @rows = (files.map { |name, entry| row(name, entry) } + stubs(never))
-                .reject { |path, name| skipped?(path, name) }
+                .reject { |path, name| @config.skipped?(path, name) }
                 .sort_by { it[1] }
       end
 
@@ -70,11 +70,6 @@ module PaddedCell
         @config.tracked.flat_map { Dir.glob(it, base: @root) }.uniq.reject do |name|
           files.key?(name) || TEMPLATES.match?(name) || !File.file?(File.join(@root, name))
         end
-      end
-
-      def skipped?(path, name)
-        file = SourceFile.new(path, name)
-        @config.filters.any? { it.call(file) }
       end
 
       # Required files, also under the root's real path.

@@ -23,7 +23,7 @@ module PaddedCell
       paths: [], jobs: Etc.nprocessors, seed: nil, include: nil, exclude: nil, shard: [0, 1],
       isolation: nil, timeout: nil, budget: nil, asylum: nil, fail_fast: false, verbose: false, show_skips: false,
       list: false, junit: nil, json: nil, timings: 'tmp/padded_cell/timings.tsv', coverage: nil,
-      coverage_dir: nil, io: $stdout
+      coverage_dir: nil, coverage_map: nil, io: $stdout
     }.freeze
 
     attr_reader :options
@@ -31,6 +31,9 @@ module PaddedCell
     def initialize(**options)
       @options = DEFAULTS.merge(options)
       @options[:seed] ||= (ENV['SEED'] || Random.new_seed).to_i % 0xFFFF
+      # The map is made of lines, and of methods: a call to a one-line
+      # method runs no line Ruby sees.
+      @options[:coverage] ||= %i[lines methods] if @options[:coverage_map]
     end
 
     # Exit status: 0 when everything passed, 1 otherwise, 3 when only
@@ -62,7 +65,7 @@ module PaddedCell
     # Before the suite loads: nothing loaded earlier is measured.
     def start_coverage
       require_relative 'chart'
-      Chart::Accumulator.new(options[:coverage]).start
+      Chart::Accumulator.new(options[:coverage], map: !options[:coverage_map].nil?).start
     end
 
     # Two tools cannot share Ruby's Coverage.
@@ -97,10 +100,16 @@ module PaddedCell
       nothing_ran = batches.empty?
       reporter = build_reporter
       reporter.start
+      # First attempts only, as with the coverage it is made of.
+      map = Reporters::CoverageMap.new(options[:coverage_map], coverage: @coverage) if options[:coverage_map]
       retried = []
       @coverage&.snapshot
-      status = dispatch(tests, batches, reporter, retried) { |index, result| timings[ids[index]] = result.time }
+      status = dispatch(tests, batches, reporter, retried) do |index, result|
+        timings[ids[index]] = result.time
+        map&.record(result)
+      end
       reporter.report
+      map&.report
       report_asylum(retried)
       covered = @coverage ? report_coverage(status, reporter) : true
       Timings.save(options[:timings], timings)

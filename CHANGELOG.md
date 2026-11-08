@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.4.0 (2026-11-08)
+
+- `PADDED_CELL_ASYLUM`: retries failures from the environment. N retries,
+  or `true`/`yes`/`on` for the default 2; `0`, `false`, `no` and `off` leave
+  it off. `--asylum` still wins.
+- `--coverage-map PATH` (or `PADDED_CELL_COVERAGE_MAP`): the lines each test
+  ran, as JSON lines (`{"id":…,"file":…,"line":…,"covers":{path => lines}}`),
+  for CI that reruns only the tests a diff touches. Turns on
+  `--coverage=lines,methods` when coverage is off; never changes the summed
+  report. Free with `--isolation test`; with `--isolation worker`, two
+  coverage copies per test.
+
 ## 0.3.0 (2026-11-08)
 
 - `--budget SECONDS`: a deadline for the whole run, loading included. Once

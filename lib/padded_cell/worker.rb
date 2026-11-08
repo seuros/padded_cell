@@ -55,6 +55,8 @@ module PaddedCell
         Results.crashed(klass, name, "after_fork hook failed: #{setup_error.class}: #{setup_error.message}")
       elsif @isolation == :test
         Cell.run(klass, name, seed: @seed, limits: @limits, close: [socket], probe: @probe)
+      elsif @probe
+        @probe.measure { Cell.execute(klass, name) }
       else
         Cell.execute(klass, name)
       end

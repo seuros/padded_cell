@@ -35,9 +35,10 @@ module PaddedCell
     end
 
     # Report paths a CI runner can set without touching the command line;
-    # --json and --junit still win.
+    # --json, --junit and --coverage-map still win.
     def report_paths
-      { json: ENV.fetch('PADDED_CELL_JSON', nil), junit: ENV.fetch('PADDED_CELL_JUNIT', nil) }
+      { json: ENV.fetch('PADDED_CELL_JSON', nil), junit: ENV.fetch('PADDED_CELL_JUNIT', nil),
+        coverage_map: ENV.fetch('PADDED_CELL_COVERAGE_MAP', nil) }
         .reject { |_, path| path.nil? || path.empty? }
     end
 
@@ -107,6 +108,10 @@ module PaddedCell
       end
       opts.on('--coverage-dir DIR', 'Write coverage reports to DIR (default: coverage, or the test helper\'s)') do
         options[:coverage_dir] = it
+      end
+      opts.on('--coverage-map PATH', 'Write the lines each test ran to PATH, as JSON lines (measures ' \
+                                     'lines,methods if coverage is off; or $PADDED_CELL_COVERAGE_MAP)') do
+        options[:coverage_map] = it
       end
       opts.on('--coverage-merge DIR,DIR', Array, 'Merge the coverage of shards (their --coverage-dir) ' \
                                                  'into one report; runs no test') do

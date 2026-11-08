@@ -24,7 +24,7 @@ module PaddedCell
       pid = fork_cell(klass, name, seed, reader, writer, close, probe)
       writer.close
       delta, result = collect(pid, reader, klass, name, started, deadline) { limits.message(deadline) }
-      delta ? probe.absorb(delta) : probe&.lost
+      delta ? probe.absorb(delta, result) : probe&.lost
       result
     ensure
       reader&.close

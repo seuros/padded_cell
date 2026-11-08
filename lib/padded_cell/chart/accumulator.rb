@@ -13,11 +13,14 @@ module PaddedCell
       attr_reader :criteria
 
       # criteria: what Ruby's Coverage measures, :lines always among them
-      def initialize(criteria)
+      # map: each test's lines go on its result too (--coverage-map)
+      def initialize(criteria, map: false)
         @criteria = criteria
+        @map = map
         @root = File.realpath(Dir.pwd)
         @roots = [Dir.pwd, @root].uniq.map { "#{it}/" }
         @kept = {}
+        @names = {}
         @lost = 0
         @known = Set.new
       end
@@ -39,7 +42,16 @@ module PaddedCell
       # For a worker, right after its fork.
       def probe
         Probe.new(file: File.join(@frames, "#{Process.pid}.cov"), known: @known, keep: method(:keep?),
-                  methods: @criteria.include?(:methods), interval: Chart.config.interval)
+                  methods: @criteria.include?(:methods), interval: Chart.config.interval, map: @map)
+      end
+
+      # A measured file's name in the report, or nil for a file the report
+      # leaves out (filtered, outside the root, deleted).
+      def project_file(path)
+        @names.fetch(path) do
+          name = relative(path)
+          @names[path] = (name if name && !Chart.config.skipped?(path, name))
+        end
       end
 
       # A worker died: what it measured since its last flush is gone.
@@ -85,18 +97,24 @@ module PaddedCell
         end
       end
 
-      # Keys by real path relative to the root: a file required through a
-      # symlink and through its real path is one file. A file deleted during
-      # the run is not reported.
+      # Keys by real path relative to the root.
       def normalize(total)
         total.each_with_object({}) do |(path, entry), files|
-          relative = File.realpath(path).delete_prefix("#{@root}/")
-          next if relative.start_with?('/')
+          relative = relative(path)
+          next unless relative
 
           files[relative] ? Delta.merge!(files, { relative => entry }) : files[relative] = entry
-        rescue SystemCallError
-          next
         end
+      end
+
+      # By real path: a file required through a symlink and through its real
+      # path is one file. nil outside the root, or for a file deleted during
+      # the run.
+      def relative(path)
+        relative = File.realpath(path).delete_prefix("#{@root}/")
+        relative unless relative.start_with?('/')
+      rescue SystemCallError
+        nil
       end
     end
   end

@@ -88,12 +88,13 @@ module PaddedCell
     end
 
     # Marshal.dump, after replacing failures that cannot cross a pipe (an
-    # exception holding a Proc, an IO...) with plain copies.
+    # exception holding a Proc, an IO...) with plain copies. Of the metadata,
+    # only the coverage map's plain data survives.
     def dump(result)
       Marshal.dump(result)
     rescue TypeError, ArgumentError
       result.failures = result.failures.map { portable(it) }
-      result.metadata = {} if result.metadata?
+      result.metadata = result.metadata.slice(:covers) if result.metadata?
       Marshal.dump(result)
     end
 
