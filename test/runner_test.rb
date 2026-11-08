@@ -316,6 +316,29 @@ class RunnerTest < Minitest::Test
     end
   end
 
+  def test_the_environment_asks_for_the_reports
+    Dir.mktmpdir do |dir|
+      junit = File.join(dir, 'junit.xml')
+      json = File.join(dir, 'results.jsonl')
+      padded_cell('--no-timings', suite: 'basic',
+                                  env: { 'PADDED_CELL_JSON' => json, 'PADDED_CELL_JUNIT' => junit })
+
+      assert_equal 6, File.readlines(json).size
+      assert_includes File.read(junit), '<testsuites name="padded_cell" tests="6"'
+    end
+  end
+
+  def test_the_command_line_wins_over_the_environment
+    Dir.mktmpdir do |dir|
+      from_env = File.join(dir, 'env.jsonl')
+      from_flag = File.join(dir, 'flag.jsonl')
+      padded_cell('--no-timings', '--json', from_flag, suite: 'basic', env: { 'PADDED_CELL_JSON' => from_env })
+
+      assert_path_exists from_flag
+      refute_path_exists from_env
+    end
+  end
+
   def test_timings_are_recorded
     Dir.mktmpdir do |dir|
       path = File.join(dir, 'timings.tsv')

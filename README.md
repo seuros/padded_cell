@@ -74,6 +74,7 @@ $ padded_cell --asylum                     # retry failures; report the flaky on
 $ padded_cell --list                       # what would run, without loading anything
 $ padded_cell --shard 2/4                  # CI: the second quarter of the classes
 $ padded_cell --junit tmp/junit.xml --json tmp/results.jsonl
+$ PADDED_CELL_JSON=tmp/results.jsonl padded_cell   # same, from a CI runner's env
 $ padded_cell --coverage                   # line and branch coverage (see Coverage)
 ```
 

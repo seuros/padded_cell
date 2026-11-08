@@ -22,7 +22,7 @@ module PaddedCell
     # Exit status: 0 passed, 1 failed, 2 usage or load error, 3 coverage below
     # a minimum, 130 interrupted.
     def start(argv, io: $stdout)
-      options = { io:, coverage: coverage_criteria(ENV.fetch('PADDED_CELL_COVERAGE', nil)) }
+      options = { io:, coverage: coverage_criteria(ENV.fetch('PADDED_CELL_COVERAGE', nil)), **report_paths }
       parser(options).parse!(argv)
       return merge(options) if options[:coverage_merge]
 
@@ -31,6 +31,13 @@ module PaddedCell
     rescue OptionParser::ParseError, ArgumentError, RegexpError, LoadFailure, Unsupported, SystemCallError => e
       warn "padded_cell: #{e.message}"
       2
+    end
+
+    # Report paths a CI runner can set without touching the command line;
+    # --json and --junit still win.
+    def report_paths
+      { json: ENV.fetch('PADDED_CELL_JSON', nil), junit: ENV.fetch('PADDED_CELL_JUNIT', nil) }
+        .reject { |_, path| path.nil? || path.empty? }
     end
 
     def parser(options)
