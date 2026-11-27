@@ -55,8 +55,20 @@ module PaddedCell
     # never call: the declaration is read from the files the classes were
     # defined in instead, test helpers and support files included.
     def abstract_classes(runnables)
-      files = runnables.filter_map { (name = it.name) && Object.const_source_location(name)&.first }
+      files = runnables.filter_map { source_file(it) }
       Discovery.abstract_classes(files.uniq.select { File.file?(it) }).to_set
+    end
+
+    CONSTANT_PATH = /\A[A-Z]\w*(::[A-Z]\w*)*\z/
+
+    # Spec classes are named after their description ("GET #index"), which
+    # is no constant: their methods say where they were defined.
+    def source_file(klass)
+      name = klass.name
+      return unless name
+      return Object.const_source_location(name)&.first if name.match?(CONSTANT_PATH)
+
+      klass.instance_methods(false).lazy.filter_map { klass.instance_method(it).source_location&.first }.first
     end
   end
 

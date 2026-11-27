@@ -12,7 +12,7 @@ class AbstractRunTest < Minitest::Test
     %w[test worker].each do |isolation|
       run = padded_cell('--no-timings', '--isolation', isolation, '-v', suite: 'abstract')
 
-      assert_equal [3, 6, 0, 0, 0], run.summary, "#{isolation}: #{run.out}#{run.err}"
+      assert_equal [4, 7, 0, 0, 0], run.summary, "#{isolation}: #{run.out}#{run.err}"
       assert_includes run.out, 'TriangleTest#test_has_sides'
       refute_match(/(ShapeTestCase|PolygonTest)#/, run.out)
     end
@@ -22,5 +22,11 @@ class AbstractRunTest < Minitest::Test
     run = padded_cell('--list', suite: 'abstract')
 
     assert_equal '', run.out
+  end
+
+  def test_spec_classes_named_by_description_run
+    run = padded_cell('--no-timings', '-v', suite: 'abstract')
+
+    assert_includes run.out, 'GET #index#test_0001_responds', run.err
   end
 end
