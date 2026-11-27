@@ -20,5 +20,8 @@ module PaddedCell
     def source(source, file: '(source)') = refs(PaddedCellNative.discover(source), file)
 
     def refs(rows, file) = rows.map { TestRef.new(file, *it) }
+
+    # Names of the classes declared `abstract_test_case!` in files.
+    def abstract_classes(files) = PaddedCellNative.abstract_classes(files)
   end
 end

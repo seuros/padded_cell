@@ -107,3 +107,49 @@ fn discover_files_reports_the_first_unreadable_file() {
 fn ids_of(discovery: &Discovery) -> Vec<String> {
     discovery.iter().map(|test| test.id()).collect()
 }
+
+#[test]
+fn abstract_test_cases_run_none_of_their_own_tests() {
+    let source = concat!(
+        "class ShapeTest < Minitest::Test\n",
+        "  abstract_test_case!\n",
+        "  def test_area; end\n",
+        "end\n",
+        "module Shapes\n",
+        "  class SquareTest < ShapeTest\n    def test_side; end\n  end\n",
+        "  class BaseTest < ActiveSupport::TestCase\n",
+        "    test 'shared' do; end\n",
+        "    abstract_test_case!(self)\n",
+        "  end\n",
+        "end\n",
+    );
+    let found = discover(source.as_bytes());
+    assert_eq!(ids_of(&found), ["Shapes::SquareTest#test_side"]);
+    assert_eq!(found.abstract_classes(), ["ShapeTest", "Shapes::BaseTest"]);
+}
+
+#[test]
+fn only_a_bare_statement_of_the_class_body_declares_it_abstract() {
+    let bodies = [
+        "def self.x = abstract_test_case!",
+        "included { abstract_test_case! }",
+        "abstract_test_case!(Other)",
+        "self.abstract_test_case!",
+        "class Inner\n    abstract_test_case!\n  end",
+    ];
+    for body in bodies {
+        let source = format!("class ATest < Minitest::Test\n  {body}\n  def test_a; end\nend");
+        let found = discover(source.as_bytes());
+        assert_eq!(ids_of(&found), ["ATest#test_a"], "source: {source:?}");
+        assert_eq!(found.abstract_classes(), [] as [&str; 0], "source: {source:?}");
+    }
+}
+
+#[test]
+fn abstract_classes_need_a_known_name_and_a_test_superclass() {
+    let source = concat!(
+        "class Helper < Object\n  abstract_test_case!\nend\n",
+        "class foo::DynamicTest < Minitest::Test\n  abstract_test_case!\nend\n",
+    );
+    assert_eq!(discover(source.as_bytes()).abstract_classes(), [] as [&str; 0]);
+}

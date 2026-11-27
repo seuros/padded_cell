@@ -34,11 +34,23 @@ module PaddedCell
 
     # [klass, method_name] for every loaded test, the way Minitest finds them.
     def tests
-      Minitest::Runnable.runnables.flat_map do |klass|
+      runnables = Minitest::Runnable.runnables
+      abstract = abstract_classes(runnables)
+      runnables.flat_map do |klass|
+        next [] if abstract.include?(klass.name)
+
         klass.runnable_methods.map { [klass, it] }
       rescue NotImplementedError
         []
       end
+    end
+
+    # Minitest's abstract_test_case! guards the class-level run, which cells
+    # never call: the declaration is read from the files the classes were
+    # defined in instead, test helpers and support files included.
+    def abstract_classes(runnables)
+      files = runnables.filter_map { (name = it.name) && Object.const_source_location(name)&.first }
+      Discovery.abstract_classes(files.uniq.select { File.file?(it) }).to_set
     end
   end
 

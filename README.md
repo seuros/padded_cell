@@ -104,6 +104,12 @@ errors, 3 when only coverage is below a threshold, 130 when interrupted.
 Loaded tests are the source of truth: inherited, `define_method` and other
 dynamic tests run even though static discovery cannot see them.
 
+Minitest 6.1's `abstract_test_case!` is honored: a base class that calls it
+runs its tests only in its subclasses, wherever it is defined (support files
+included). padded_cell reads the call from the class body, so it has to be a
+plain `abstract_test_case!` statement there, not one made from a block, a
+method, an included module or for another class.
+
 ### Isolation
 
 `--isolation test` forks a cell per test. Forking a preloaded process is

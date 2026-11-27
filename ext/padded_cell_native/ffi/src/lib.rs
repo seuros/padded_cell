@@ -86,18 +86,29 @@ fn discover(ruby: &Ruby, source: RString) -> Result<RArray, Error> {
 
 /// Reads and parses on scoped threads: none is left running when Ruby forks
 /// next.
-fn discover_files(ruby: &Ruby, paths: RArray) -> Result<RArray, Error> {
-    let found = with_bytes(&strings(paths)?, |paths| {
+fn discoveries(ruby: &Ruby, paths: RArray) -> Result<Vec<Discovery>, Error> {
+    with_bytes(&strings(paths)?, |paths| {
         let paths: Vec<&Path> =
             paths.iter().map(|path| Path::new(OsStr::from_bytes(path))).collect();
         padded_cell::discover_files(&paths)
     })
-    .map_err(|error| file_error(ruby, &error))?;
+    .map_err(|error| file_error(ruby, &error))
+}
+
+fn discover_files(ruby: &Ruby, paths: RArray) -> Result<RArray, Error> {
+    let found = discoveries(ruby, paths)?;
     let files = ruby.ary_new_capa(found.len());
     for discovery in &found {
         files.push(rows(ruby, discovery)?)?;
     }
     Ok(files)
+}
+
+/// Names of the classes declared `abstract_test_case!` in the files, in file
+/// order: the runner drops their own tests after loading.
+fn abstract_classes(ruby: &Ruby, paths: RArray) -> Result<Vec<String>, Error> {
+    let found = discoveries(ruby, paths)?;
+    Ok(found.iter().flat_map(|discovery| discovery.abstract_classes().iter().cloned()).collect())
 }
 
 fn plan(
@@ -118,6 +129,7 @@ fn init(ruby: &Ruby) -> Result<(), Error> {
     module.define_module_function("version", function!(version, 0))?;
     module.define_module_function("discover", function!(discover, 1))?;
     module.define_module_function("discover_files", function!(discover_files, 1))?;
+    module.define_module_function("abstract_classes", function!(abstract_classes, 1))?;
     module.define_module_function("plan", function!(plan, 5))?;
     module.define_module_function("chart_report", function!(chart::chart_report, 3))?;
     limits::define(ruby, module)?;

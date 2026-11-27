@@ -3,14 +3,17 @@
 //! A test class is a class whose superclass constant ends in `Test` or
 //! `TestCase` (`Minitest::Test`, `ActiveSupport::TestCase`, an app's own
 //! `BaseTest`...). Its tests are `def test_*` methods and Rails'
-//! `test "name"` declarations. Nothing is evaluated.
+//! `test "name"` declarations. A class that calls `abstract_test_case!`
+//! in its body (Minitest 6.1+) runs none of its own tests: it is listed in
+//! [`Discovery::abstract_classes`] instead. Nothing is evaluated.
 
 use std::iter::FusedIterator;
 use std::path::Path;
 use std::slice;
 
 use ruby_prism::{
-    CallNode, ClassNode, DefNode, Location, ModuleNode, Node, SingletonClassNode, Visit,
+    CallNode, ClassNode, DefNode, Location, ModuleNode, Node, SingletonClassNode, StatementsNode,
+    Visit,
 };
 
 use crate::FileError;
@@ -25,6 +28,7 @@ mod tests;
 pub struct Discovery {
     classes: Vec<String>,
     tests: Vec<Entry>,
+    abstract_classes: Vec<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -63,6 +67,13 @@ impl Discovery {
     #[must_use]
     pub fn classes(&self) -> &[String] {
         &self.classes
+    }
+
+    /// Names of the test classes declared `abstract_test_case!`, in order of
+    /// appearance. Their own tests are not in [`Discovery::iter`].
+    #[must_use]
+    pub fn abstract_classes(&self) -> &[String] {
+        &self.abstract_classes
     }
 
     /// Number of tests.
@@ -226,17 +237,28 @@ impl<'pr> Visitor<'pr> {
             scope_start: 0,
             dynamic: false,
             test_class: TestClass::Outside,
-            discovery: Discovery { classes: Vec::new(), tests: Vec::new() },
+            discovery: Discovery {
+                classes: Vec::new(),
+                tests: Vec::new(),
+                abstract_classes: Vec::new(),
+            },
         }
     }
 
-    fn within(&mut self, path: &Node<'pr>, test: bool, visit: impl FnOnce(&mut Self)) {
+    fn within(&mut self, path: &Node<'pr>, kind: Kind, visit: impl FnOnce(&mut Self)) {
         let (depth, scope_start, dynamic, test_class) =
             (self.scope.len(), self.scope_start, self.dynamic, self.test_class);
         let constant = self.push_constant(path).is_some();
         self.dynamic |= !constant;
-        self.test_class =
-            if test && !self.dynamic { TestClass::Pending } else { TestClass::Outside };
+        self.test_class = match kind {
+            Kind::Test if !self.dynamic => TestClass::Pending,
+            Kind::Abstract if !self.dynamic => {
+                let name = self.class_name();
+                self.discovery.abstract_classes.push(name);
+                TestClass::Outside
+            }
+            _ => TestClass::Outside,
+        };
         visit(self);
         self.scope.truncate(depth);
         (self.scope_start, self.dynamic, self.test_class) = (scope_start, dynamic, test_class);
@@ -255,8 +277,15 @@ impl<'pr> Visitor<'pr> {
         Some(())
     }
 
-    /// Stores the current namespace as a class name, joined once.
+    /// Stores the current namespace as a class name.
     fn add_class(&mut self) -> usize {
+        let class = self.class_name();
+        self.discovery.classes.push(class);
+        self.discovery.classes.len() - 1
+    }
+
+    /// The current namespace, joined once.
+    fn class_name(&self) -> String {
         let names = &self.scope[self.scope_start..];
         let length =
             names.iter().map(|name| name.len()).sum::<usize>() + 2 * names.len().saturating_sub(1);
@@ -267,8 +296,7 @@ impl<'pr> Visitor<'pr> {
             }
             class.push_str(name);
         }
-        self.discovery.classes.push(class);
-        self.discovery.classes.len() - 1
+        class
     }
 
     const fn in_test_class(&self) -> bool {
@@ -297,14 +325,24 @@ impl<'pr> Visitor<'pr> {
 
 impl<'pr> Visit<'pr> for Visitor<'pr> {
     fn visit_module_node(&mut self, node: &ModuleNode<'pr>) {
-        self.within(&node.constant_path(), false, |visitor| {
+        self.within(&node.constant_path(), Kind::Plain, |visitor| {
             ruby_prism::visit_module_node(visitor, node);
         });
     }
 
     fn visit_class_node(&mut self, node: &ClassNode<'pr>) {
-        let test = node.superclass().is_some_and(|superclass| test_superclass(&superclass));
-        self.within(&node.constant_path(), test, |visitor| {
+        let kind = if !node.superclass().is_some_and(|superclass| test_superclass(&superclass)) {
+            Kind::Plain
+        } else if node
+            .body()
+            .and_then(|body| body.as_statements_node())
+            .is_some_and(|body| abstract_body(&body))
+        {
+            Kind::Abstract
+        } else {
+            Kind::Test
+        };
+        self.within(&node.constant_path(), kind, |visitor| {
             ruby_prism::visit_class_node(visitor, node);
         });
     }
@@ -338,6 +376,36 @@ impl<'pr> Visit<'pr> for Visitor<'pr> {
         }
         ruby_prism::visit_call_node(self, node);
     }
+}
+
+/// What a namespace being entered is.
+#[derive(Debug, Clone, Copy)]
+enum Kind {
+    /// A module, or a class that is not a test class.
+    Plain,
+    /// A test class.
+    Test,
+    /// A test class declared `abstract_test_case!`: its tests run only in
+    /// its subclasses.
+    Abstract,
+}
+
+/// Whether a class body calls `abstract_test_case!` (or
+/// `abstract_test_case!(self)`) as one of its own statements. A call inside
+/// a block or a method may run for another class, or never.
+fn abstract_body(body: &StatementsNode<'_>) -> bool {
+    body.body().iter().any(|statement| {
+        statement.as_call_node().is_some_and(|call| {
+            call.receiver().is_none()
+                && call.block().is_none()
+                && call.name().as_slice() == b"abstract_test_case!"
+                && call.arguments().is_none_or(|arguments| {
+                    let arguments = arguments.arguments();
+                    arguments.len() == 1
+                        && arguments.iter().all(|argument| argument.as_self_node().is_some())
+                })
+        })
+    })
 }
 
 /// Whether a superclass is a constant path ending in `Test` or `TestCase`.

@@ -26,6 +26,17 @@ class DiscoverTest < Minitest::Test
     end
   end
 
+  def test_abstract_classes_are_read_from_files
+    Dir.mktmpdir do |dir|
+      file = File.join(dir, 'shape_test_case.rb')
+      File.write(file, "module Shapes\n  class BaseTest < Minitest::Test\n    abstract_test_case!\n    " \
+                       "def test_area; end\n  end\nend\n")
+
+      assert_equal ['Shapes::BaseTest'], PaddedCell::Discovery.abstract_classes([file])
+      assert_empty PaddedCell::Discovery.call([file])
+    end
+  end
+
   def test_discovery_reads_files_into_test_refs
     Dir.mktmpdir do |dir|
       file = File.join(dir, 'user_test.rb')
