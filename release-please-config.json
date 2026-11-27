@@ -1,0 +1,31 @@
+{
+  "$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json",
+  "packages": {
+    ".": {
+      "release-type": "ruby",
+      "package-name": "padded_cell",
+      "version-file": "lib/padded_cell/version.rb",
+      "changelog-path": "CHANGELOG.md",
+      "include-component-in-tag": false,
+      "bump-minor-pre-major": true,
+      "extra-files": [
+        {
+          "type": "toml",
+          "path": "ext/padded_cell_native/core/Cargo.toml",
+          "jsonpath": "$.package.version"
+        },
+        {
+          "type": "toml",
+          "path": "ext/padded_cell_native/ffi/Cargo.toml",
+          "jsonpath": "$.package.version"
+        },
+        {
+          "type": "toml",
+          "path": "Cargo.lock",
+          "jsonpath": "$.package[?(@.name.value=='padded_cell' || @.name.value=='padded_cell_native')].version"
+        }
+      ]
+    }
+  },
+  "bootstrap-sha": "d1b629f909c12b71d4b2e71b36f4ed9406513955"
+}

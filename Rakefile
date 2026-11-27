@@ -91,7 +91,7 @@ task default: 'test:all'
 
 # Bundler's release would push only the source gem.
 Rake::Task['release'].clear
-desc 'Release: tag, then push the gems built by the release workflow (rake gem:push_all)'
+desc 'Release: merge the release-please PR, then push the gems it built (rake gem:push_all)'
 task :release do
-  abort 'Use the release workflow (push a v* tag), then `rake gem:push_all`'
+  abort 'Merge the release-please PR (it tags and builds the gems), then `rake gem:push_all`'
 end
