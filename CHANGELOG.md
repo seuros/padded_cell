@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.1](https://github.com/seuros/padded_cell/compare/v0.5.0...v0.5.1) (2026-11-27)
+
+
+### Bug Fixes
+
+* resolve spec classes named by their description ([7c065c1](https://github.com/seuros/padded_cell/commit/7c065c121c6059f3b740e658c25136abeac4ff84))
+
 ## [0.5.0](https://github.com/seuros/padded_cell/compare/v0.4.0...v0.5.0) (2026-11-27)
 
 
