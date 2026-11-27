@@ -42,7 +42,7 @@ down. The other 44 never noticed.
 
 ## Installation
 
-Requires CRuby 4.0 or newer and Minitest 6, on Linux, macOS or FreeBSD.
+Requires CRuby 4.0 or newer and Minitest 6.1+, on Linux, macOS or FreeBSD.
 padded_cell is built on `fork`: Windows, JRuby and TruffleRuby are not
 supported.
 

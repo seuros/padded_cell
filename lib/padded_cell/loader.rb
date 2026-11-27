@@ -16,6 +16,12 @@ module PaddedCell
     module_function
 
     def call(files, seed:)
+      # An at_exit cannot be taken back: refuse rather than run twice.
+      if Minitest.installed_at_exit?
+        raise LoadFailure, 'minitest/autorun was required before padded_cell loaded the suite: its at_exit ' \
+                           'would run every test again, unisolated. Drop it from RUBYOPT, or require ' \
+                           "'minitest' instead where it runs before padded_cell"
+      end
       Minitest.singleton_class.prepend(NoAutorun)
       Minitest.seed = seed
       # What `rake test` and `rails test` put on the load path.

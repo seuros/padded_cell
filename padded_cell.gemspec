@@ -36,7 +36,7 @@ Gem::Specification.new do |spec|
   spec.require_paths = ['lib']
 
   # A runner for Minitest suites: it drives Minitest's own test and reporter classes.
-  spec.add_dependency 'minitest', '~> 6.0'
+  spec.add_dependency 'minitest', '~> 6.1'
 
   if platform
     spec.platform = Gem::Platform.new(platform)

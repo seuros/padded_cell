@@ -47,4 +47,13 @@ class CLITest < Minitest::Test
       assert_includes run.err, message
     end
   end
+
+  # Its at_exit is already registered: the suite would run twice.
+  def test_refuses_to_run_after_minitest_autorun
+    run = padded_cell('--no-timings', suite: 'basic', env: { 'RUBYOPT' => '-rminitest/autorun' })
+
+    assert_equal 2, run.exitstatus
+    assert_includes run.err, 'minitest/autorun was required before padded_cell loaded the suite'
+    assert_empty run.out
+  end
 end
