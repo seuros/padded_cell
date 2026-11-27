@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.5.0](https://github.com/seuros/padded_cell/compare/v0.4.0...v0.5.0) (2026-11-27)
+
+
+### Features
+
+* honor Minitest 6.1's abstract_test_case! ([387ae4f](https://github.com/seuros/padded_cell/commit/387ae4f63d5816caed779fc6dcf667942683c4af))
+* refuse to run after minitest/autorun installed its at_exit ([bd3e81d](https://github.com/seuros/padded_cell/commit/bd3e81d40940fe791f086601e69d1c0f4a7c57e9))
+
 ## 0.4.0 (2026-11-08)
 
 - `PADDED_CELL_ASYLUM`: retries failures from the environment. N retries,
